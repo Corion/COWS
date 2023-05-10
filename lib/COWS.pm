@@ -1,4 +1,4 @@
-package Corion::Scraper 0.1;
+package COWS 0.01;
 
 use 5.020;
 use Carp 'croak';
@@ -10,6 +10,14 @@ use XML::LibXML;
 use HTML::Selector::XPath 'selector_to_xpath';
 
 our @EXPORT_OK = ('scrape', 'scrape_xml');
+
+=head1 NAME
+
+COWS - Corion's Own Web Scraper
+
+=head1 SYNOPSIS
+
+=cut
 
 =for thinking
 
