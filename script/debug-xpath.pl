@@ -6,6 +6,10 @@ use feature 'signatures';
 no warnings 'experimental::signatures';
 
 use XML::LibXML;
+use Term::ReadKey;
+
+use lib '../Term-Output-List/lib';
+use Term::Output::List;
 
 # XXX rename "axis" to something better, maybe "range" / "subtree" ?!
 sub splitXPath( $query ) {
@@ -55,16 +59,75 @@ sub node_match( $node, $step ) {
     return $found[0]
 }
 
-sub display_location( $location, $curr_step ) {
-    # We also want the current path, and the location within the path
-    my $vis = $location->textContent;
+my $printer = Term::Output::List->new();
+
+sub node_vis( $node ) {
+    my $vis = $node->textContent;
     $vis =~ s!\s+! !msg;
     if( length $vis > 10 ) { $vis = substr( $vis, 0, 7 ) . "..." };
-    say "<$curr_step->{node}> ?";
-    print sprintf "\r<%s> (%s)", $location->nodeName, $vis;
+    return sprintf "<%s> (%s)", $node->nodeName, $vis;
+}
+
+sub surrounding_nodes( $node, $strategy ) {
+    my @res;
+    my $curr = $node;
+    for ( 1..10 ) {
+        $curr = $strategy->($curr, $node);
+        push @res, $curr
+            if $curr;
+    }
+
+    @res
+}
+
+sub display_location( $context, $location, $curr_step, $action ) {
+    # We also want the current path, and the location within the path
+
+    my $path = $context->{path};
+    my $pos = $context->{step};
+
+    use Carp 'croak';
+    croak "No position"
+        unless defined $pos;
+
+    my $vis = node_vis( $location );
+
+    my %strategies = (
+        '/'  => \&nextDirectChild,
+        '//' => \&nextLinear,
+    );
+
+    my $strategy = $strategies{ $curr_step->{ axis } };
+
+    my @out;
+
+    push @out, join " ", map { $_->{node} } @$path;
+
+    my $idx = 0;
+    push @out, join " ", map {
+                             my $vis = ($idx++ == $pos) ? '^' : ' ';
+                             '' . ($vis x length($_->{node}))
+                         } @$path;
+
+    my @next_nodes = surrounding_nodes( $location, $strategy );
+    push @out, join " ", map { node_vis( $_ ) } @next_nodes;
+    push @out, $action;
+
+    $printer->output_list(@out);
+}
+
+sub display_step( $step ) {
+    $printer->output_permanent( $step );
+}
+
+sub prompt() {
+    ReadMode 2;
+    <>;
+    ReadMode 0;
 }
 
 sub nextLinear( $curr, $limit ) {
+    return if ! $curr;
     if( $curr->hasChildNodes ) {
         #say "Descending";
         return $curr->firstChild
@@ -89,57 +152,56 @@ sub nextLinear( $curr, $limit ) {
 }
 
 sub nextDirectChild( $curr, $limit ) {
+    return if ! $curr;
     $curr->nextNonBlankSibling
 }
 
-sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
+sub search_xpath(  $context, $node, $search_step, $last_step=undef, $limit = $node ) {
     local $| = 1;
 
     if( $search_step->{node} =~ /^\@/ ) {
         my $curr = $last_step // $node;
-        say "Checking attributes for $search_step->{node}";
+        display_step( "Checking attributes for $search_step->{node}" );
         if( my @r = node_match( $curr, $search_step )) {
             print "$search_step->{node} found\n";
             return ($r[0], undef) # no sense in continuing
         };
-        <>;
+        display_location( $context, $curr, $search_step, '' );
+        prompt();
 
     } elsif( $search_step->{axis} eq '/' ) {
 
         my $curr;
         if ( ! $last_step ) {
-            say sprintf "Enumerating all children of %s for %s%s", $node->nodePath, $search_step->{axis}, $search_step->{node};
+            display_step( sprintf "Enumerating all children of %s for %s%s", $node->nodePath, $search_step->{axis}, $search_step->{node} );
             $curr = $node->firstChild;
         } else {
             $curr = nextDirectChild( $last_step, $limit );
             if( $curr ) {
-                say sprintf "Enumerating next children of %s after %s for %s%s", $node->nodePath, $last_step->nodePath, $search_step->{axis}, $search_step->{node};
+                display_step(
+                    sprintf "Enumerating next children of %s after %s for %s%s", $node->nodePath, $last_step->nodePath, $search_step->{axis}, $search_step->{node}
+                );
             }
         }
         if( ! $curr ) {
-            say "No child or next (non blank) sibling found";
+            display_step( "No child or next (non blank) sibling found" );
             return (undef, undef);
         }
 
         while( $curr ) {
-            display_location( $curr, $search_step );
-
             if( node_match( $curr, $search_step )) {
-                print " found\n";
+                display_step( " found" );
+                display_location( $context, $curr, $search_step, '' );
+                prompt();
                 return ($curr, $curr)
             };
-            <>;
-            #my $d = $curr;
-            #while( $d ) {
-            #    #$d = $d->nextSibling;
-            #    say $d->nodeName . " # " . $d->toString;
-            #    $d = $d->nextNonBlankSibling;
-            #}
+                display_location( $context, $curr, $search_step, '' );
+            prompt();
             $curr = nextDirectChild( $curr, $limit );
         }
     } elsif( $search_step->{axis} eq '//' ) {
 
-        say "Enumerating all successors";
+        display_step( "Enumerating all successors" );
 
         my $curr;
         if( ! $last_step ) {
@@ -150,19 +212,15 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
         return (undef, undef) unless $curr;
 
         while( $curr ) {
-            display_location( $curr, $search_step );
+                display_location( $context, $curr, $search_step, '' );
 
             if( node_match( $curr, $search_step )) {
-                print " found\n";
+                display_location( $context, $curr, $search_step, 'found' );
+                prompt();
                 return ($curr, $curr)
             };
-            <>;
-            #my $d = $curr;
-            #while( $d ) {
-            #    #$d = $d->nextSibling;
-            #    say $d->nodeName . " # " . $d->toString;
-            #    $d = $d->nextNonBlankSibling;
-            #}
+                display_location( $context, $curr, $search_step, '' );
+            prompt();
             $curr = nextLinear($curr, $limit );
         }
     }
@@ -172,7 +230,6 @@ sub trace_xpath( $query, $node ) {
     my @path = splitXPath( $query );
 
     my $curr = $node;
-    say $curr->nodeName;
     # We want to collect all matches, not only the first, so we need to keep
     # track of the alternatives and chase them all
     # Maybe we still can do this by building our own stack and tracking it all
@@ -182,7 +239,7 @@ sub trace_xpath( $query, $node ) {
 
     my $i = 0;
 
-    say "Evaluating candidates along the way";
+    display_step( "Evaluating candidates along the way" );
 
     my @found;
     # Now, go one step deeper, and collect all candidates there:
@@ -191,18 +248,28 @@ sub trace_xpath( $query, $node ) {
 
         my ($curr, $i, $limit) = (shift @candidates)->@*;
         $i++;
-        say sprintf "Next candidate: <%s>, searching for .%s<%s>", $curr->nodeName, $path[$i]->{axis}, $path[$i]->{node};
+        display_step(
+            sprintf "Next candidate: <%s>, searching for .%s<%s>", $curr->nodeName, $path[$i]->{axis}, $path[$i]->{node}
+        );
 
         my $justfound;
         my $cont;
         my $found;
         while( $curr ) {
             my $last = $curr;
-            ($found, $cont) = search_xpath( $curr, $path[$i], $cont, $limit );
+
+            my $context = {
+                path => \@path,
+                step => $i,
+            };
+
+            ($found, $cont) = search_xpath( $context, $curr, $path[$i], $cont, $limit );
             if( $found ) {
                 if( $i == $#path ) {
                     push @found, $found; # we found a terminal node
-                    say sprintf "Found %s at %s, keeping", $found->nodeName, $found->nodePath;
+                    display_step(
+                        sprintf "Found %s at %s, keeping", $found->nodeName, $found->nodePath
+                    );
                     $justfound = 1;
                     undef $curr;
 
@@ -212,7 +279,9 @@ sub trace_xpath( $query, $node ) {
 
                 } else {
                     # We need to dig deeper
-                    say sprintf "Found %s at %s as candidate for step %d (%s)", $found->nodeName, $found->nodePath, $i, $path[ $i ]->{node};
+                    display_step(
+                        sprintf "Found %s at %s as candidate for step %d (%s)", $found->nodeName, $found->nodePath, $i, $path[ $i ]->{node}
+                    );
 
                     ## BFS is broken now
                     #if( $cont ) {
@@ -226,7 +295,9 @@ sub trace_xpath( $query, $node ) {
                     $curr = $found;
                     undef $cont;
 
-                    say sprintf "Stepping from %s%s (%d) to %s%s", $path[ $i ]->{axis}, $path[ $i ]->{node}, $i, $path[ $i+1 ]->{axis}, $path[ $i+1 ]->{node};
+                    #display_step(
+                    #    sprintf "Stepping from %s%s (%d) to %s%s", $path[ $i ]->{axis}, $path[ $i ]->{node}, $i, $path[ $i+1 ]->{axis}, $path[ $i+1 ]->{node};
+                    #);
                     $i++;
                 }
             } else {
@@ -234,12 +305,18 @@ sub trace_xpath( $query, $node ) {
                     # no message here
                 } else {
                     if( $last ) {
-                        say sprintf "Failed, %s not found after %s", $path[$i]->{node}, $last->nodePath;
+                        display_step(
+                            sprintf "Failed, %s not found after %s", $path[$i]->{node}, $last->nodePath
+                        );
                     } else {
-                        say sprintf "Failed, %s not found", $path[$i]->{node};
+                        display_step(
+                            sprintf "Failed, %s not found", $path[$i]->{node}
+                        );
                     }
                     if( @candidates ) {
-                        say "... but we have more alternatives to try";
+                        display_step(
+                            "... but we have more alternatives to try"
+                        );
                     }
                 }
                 undef $curr;
@@ -249,7 +326,7 @@ sub trace_xpath( $query, $node ) {
     }
 
     if( @found ) {
-        say "Found " . $_->textContent for @found
+        display_step( "Found " . $_->textContent ) for @found
     }
     return @found;
 }
