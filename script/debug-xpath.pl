@@ -209,7 +209,12 @@ sub trace_xpath( $query, $node ) {
                 } else {
                     # We need to dig deeper
                     say sprintf "Found %s at %s as candidate for step %d", $curr->nodeName, $curr->nodePath, $i;
-                    push @candidates, [$curr, $i, $limit]; # collect alternatives for current step
+
+                    # BFS
+                    #push @candidates, [$curr, $i, $limit]; # collect alternatives for current step
+
+                    # DFS
+                    unshift @candidates, [$curr, $i, $limit]; # collect alternatives for current step
                 }
             } else {
                 if( $justfound ) {
