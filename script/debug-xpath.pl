@@ -70,7 +70,7 @@ sub nextLinear( $curr, $limit ) {
         return $curr->nextNonBlankSibling
     } elsif( $curr->parentNode != $limit ) {
         #say "End of level, continuing upwards";
-        while( $curr->parentNode != $limit ) {
+        while( $curr->parentNode && $curr->parentNode != $limit ) {
             $curr = $curr->parentNode;
             return if ! $curr;
             if( my $n = $curr->nextNonBlankSibling ) {
