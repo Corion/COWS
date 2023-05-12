@@ -12,7 +12,7 @@ no warnings 'experimental::signatures';
 
 use URI;
 use lib '/home/corion/Projekte/Corion-Scraper/lib';
-use Corion::Scraper 'scrape';
+use COWS 'scrape';
 use Mojo::UserAgent;
 
 has 'ua' => (

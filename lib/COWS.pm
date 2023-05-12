@@ -17,6 +17,19 @@ COWS - Corion's Own Web Scraper
 
 =head1 SYNOPSIS
 
+    use COWS 'scrape';
+
+    my $html = '...';
+    my $rules = {
+        ...
+    };
+
+    my %mungers = (
+        ... # callbacks
+    );
+
+    my $data = scrape($html, $rules, { mungers => \%mungers });
+
 =cut
 
 =for thinking
@@ -141,6 +154,12 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
             }
         }
 
+        my $debug;
+
+        if( delete $_rules{ debug }) {
+            $debug = 1;
+        }
+
         my $single_query;
         my $attribute;
         #warn Dumper \%_rules;
@@ -213,8 +232,14 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                 if @subitems > 1;
             my $name = $subitems[0];
 
-            say "$name [ $query ] $anonymous"
-                if $options->{debug};
+            if( $options->{debug} or $debug) {
+                my $str = $node->toString;
+                $str =~ s!\s+! !msg; # compress the string slightly
+                if( length $str > 80 ) {
+                    substr( $str, 77 ) = '...';
+                }
+                say "$name [ $query ] $str"
+            }
 
             push $context->{path}->@*, $name;
 
@@ -228,6 +253,10 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
             my $items = $node->findnodes( $query );
 
             my @found = $items->get_nodelist;
+            if( $debug ) {
+                say sprintf "Found %d nodes for $query", scalar @found;
+            }
+
             if( defined $force_index) {
                 @found = $found[ $force_index-1 ];
             } elsif( $force_single ) {
@@ -285,6 +314,10 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
             }
         }
 
+        if( $debug) {
+            warn "Found " . Dumper \@res;
+        }
+
         if( $force_single ) {
 
             if( @res > 1 and not wantarray ) {
@@ -315,6 +348,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 }
 
 sub scrape($html, $rules, $options = {} ) {
+    $html =~ s!\A\s+!!sm;
     my $dom = XML::LibXML->load_html( string => $html, recover => 2 );
     return scrape_xml( $dom->documentElement, $rules, $options )
 }
