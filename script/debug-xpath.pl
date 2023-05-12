@@ -193,7 +193,7 @@ sub trace_xpath( $query, $node ) {
 
         my ($curr, $i, $limit) = (shift @candidates)->@*;
         $i++;
-        say sprintf "Next candidate: <%s>, searching for .%s<%s>", $curr->nodeName, $path[$i]->{axis}, $path[$i]->{node} ;
+        say sprintf "Next candidate: <%s>, searching for .%s<%s>", $curr->nodeName, $path[$i]->{axis}, $path[$i]->{node};
 
         my $justfound;
         my $cont;
@@ -255,7 +255,7 @@ for my $query (
     # Now check that our opinion of matches
     # is identical to XML::LibXML
     my @real = $doc->findnodes( $query );
-    is( \@found, \@real, "'$query' matches identically with XML::LibXML" );
+    is( \@found, \@real, "$query matches identically with XML::LibXML" );
 }
 
 done_testing;
