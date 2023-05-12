@@ -105,14 +105,16 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
         <>;
 
     } elsif( $search_step->{axis} eq '/' ) {
-        say sprintf "Enumerating all children for %s%s", $search_step->{axis}, $search_step->{node};
 
         my $curr;
         if ( ! $last_step ) {
-            say "Looking at first child";
+            say sprintf "Enumerating all children of %s for %s%s", $node->nodePath, $search_step->{axis}, $search_step->{node};
             $curr = $node->firstChild;
         } else {
-            $curr = nextDirectChild( $last_step, $limit )
+            $curr = nextDirectChild( $last_step, $limit );
+            if( $curr ) {
+                say sprintf "Enumerating next children of %s after %s for %s%s", $node->nodePath, $last_step->nodePath, $search_step->{axis}, $search_step->{node};
+            }
         }
         if( ! $curr ) {
             say "No child or next (non blank) sibling found";
@@ -179,19 +181,12 @@ sub trace_xpath( $query, $node ) {
     my @candidates; # stack of [path, $node] that we still want to try
 
     my $i = 0;
-    # Initialize our stack
-    say "Initializing";
-    do {
-        $curr = search_xpath( $curr, $path[$i], undef, $node );
-        if( $curr ) {
-            push @candidates, [$curr, $i, $node]; # collect alternatives for current step
-        }
-    } until ! $curr;
 
     say "Evaluating candidates along the way";
 
     my @found;
     # Now, go one step deeper, and collect all candidates there:
+    @candidates = [$doc, -1, $doc];
     while( @candidates) {
 
         my ($curr, $i, $limit) = (shift @candidates)->@*;
@@ -200,24 +195,39 @@ sub trace_xpath( $query, $node ) {
 
         my $justfound;
         my $cont;
-        do {
+        my $found;
+        while( $curr ) {
             my $last = $curr;
-            # $curr = search_xpath( $curr, $path[$i], undef, $limit );
-            ($curr, $cont) = search_xpath( $curr, $path[$i], $cont, $limit );
-            if( $curr ) {
+            ($found, $cont) = search_xpath( $curr, $path[$i], $cont, $limit );
+            if( $found ) {
                 if( $i == $#path ) {
-                    push @found, $curr; # we found a terminal node
-                    say sprintf "Found %s at %s, keeping", $curr->nodeName, $curr->nodePath;
+                    push @found, $found; # we found a terminal node
+                    say sprintf "Found %s at %s, keeping", $found->nodeName, $found->nodePath;
                     $justfound = 1;
+                    undef $curr;
+
+                    if( $cont ) {
+                        push @candidates, [$cont, $i-1, $limit]; # collect alternatives for current step
+                    }
+
                 } else {
                     # We need to dig deeper
-                    say sprintf "Found %s at %s as candidate for step %d", $curr->nodeName, $curr->nodePath, $i;
+                    say sprintf "Found %s at %s as candidate for step %d (%s)", $found->nodeName, $found->nodePath, $i, $path[ $i ]->{node};
 
-                    # BFS
-                    #push @candidates, [$curr, $i, $limit]; # collect alternatives for current step
+                    ## BFS is broken now
+                    #if( $cont ) {
+                    #    push @candidates, [$curr, $i, $limit]; # collect alternatives for current step
+                    #}
 
                     # DFS
-                    unshift @candidates, [$curr, $i, $limit]; # collect alternatives for current step
+                    if( $cont ) {
+                        push @candidates, [$cont, $i-1, $limit]; # collect alternatives for current step
+                    }
+                    $curr = $found;
+                    undef $cont;
+
+                    say sprintf "Stepping from %s%s (%d) to %s%s", $path[ $i ]->{axis}, $path[ $i ]->{node}, $i, $path[ $i+1 ]->{axis}, $path[ $i+1 ]->{node};
+                    $i++;
                 }
             } else {
                 if( $justfound ) {
@@ -232,9 +242,10 @@ sub trace_xpath( $query, $node ) {
                         say "... but we have more alternatives to try";
                     }
                 }
+                undef $curr;
                 $justfound = 0;
             }
-        } until ! $cont;
+        };
     }
 
     if( @found ) {
@@ -246,6 +257,7 @@ sub trace_xpath( $query, $node ) {
 for my $query (
     '//a/@href',
     '//div/a/@href',
+    '//div',
     '/html/head/title[1]',
 ) {
 
