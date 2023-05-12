@@ -97,12 +97,12 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
         say "Checking attributes for $search_step->{node}";
         if( my @r = node_match( $curr, $search_step )) {
             print "$search_step->{node} found\n";
-            return $r[0]
+            return ($r[0], undef) # no sense in continuing
         };
         <>;
 
     } elsif( $search_step->{axis} eq '/' ) {
-        say "Enumerating all children";
+        say sprintf "Enumerating all children for %s%s", $search_step->{axis}, $search_step->{node};
 
         my $curr;
         if ( ! $last_step ) {
@@ -113,7 +113,7 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
         }
         if( ! $curr ) {
             say "No child or next (non blank) sibling found";
-            return;
+            return (undef, undef);
         }
 
         while( $curr ) {
@@ -121,7 +121,7 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
 
             if( node_match( $curr, $search_step )) {
                 print " found\n";
-                return $curr
+                return ($curr, $curr)
             };
             <>;
             #my $d = $curr;
@@ -142,14 +142,14 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
         } else {
             $curr = nextLinear( $last_step, $limit );
         }
-        return unless $curr;
+        return (undef, undef) unless $curr;
 
         while( $curr ) {
             display_location( $curr, $search_step );
 
             if( node_match( $curr, $search_step )) {
                 print " found\n";
-                return $curr
+                return ($curr, $curr)
             };
             <>;
             #my $d = $curr;
@@ -196,9 +196,11 @@ sub trace_xpath( $query, $node ) {
         say sprintf "Next candidate: <%s>, searching for .%s<%s>", $curr->nodeName, $path[$i]->{axis}, $path[$i]->{node} ;
 
         my $justfound;
+        my $cont;
         do {
             my $last = $curr;
-            $curr = search_xpath( $curr, $path[$i], undef, $limit );
+            # $curr = search_xpath( $curr, $path[$i], undef, $limit );
+            ($curr, $cont) = search_xpath( $curr, $path[$i], $cont, $limit );
             if( $curr ) {
                 if( $i == $#path ) {
                     push @found, $curr; # we found a terminal node
@@ -224,7 +226,7 @@ sub trace_xpath( $query, $node ) {
                 }
                 $justfound = 0;
             }
-        } until ! $curr;
+        } until ! $cont;
     }
 
     if( @found ) {
