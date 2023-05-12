@@ -33,6 +33,9 @@ my $doc = XML::LibXML->load_html(string => <<'HTML');
 <a href="https://example.com/2">Another link</a>
 <a name="Here">An anchor</a>
 <div><a href="https://example.com/3">third link</a> in text</div>
+<div>more text</div>
+<div><a href="https://example.com/4">fourth link</a> in text</div>
+<div><div>nested</div></div>
 </body>
 </html>
 HTML
