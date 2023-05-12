@@ -1,5 +1,7 @@
 #!perl
 use 5.020;
+use Test2::V0;
+
 use feature 'signatures';
 no warnings 'experimental::signatures';
 
@@ -14,8 +16,8 @@ sub splitXPath( $query ) {
     #use Regexp::Debugger;
     while( $query =~ m!\G(?:
                             (?>(?<start>\.|))
-                            (?>(?<axis>/+|\@))
-                            (?>(?<node>[^/\@]+)))
+                            (?>(?<axis>/+))
+                            (?>(?<node>[^/]+)))
                     !xgc ) {
         my ($match) = keys %+;
         push @nodes, { %+ };
@@ -37,8 +39,8 @@ HTML
 
 sub node_match( $node, $step ) {
     my $query = $step->{ node };
-    if( $step->{ axis } eq '@' ) {
-        $query = "./\@$query";
+    if( $query =~ /^\@/ ) {
+        $query = "./$query";
     } else {
         $query = "self::" . $query;
     }
@@ -83,10 +85,23 @@ sub nextLinear( $curr, $limit ) {
     }
 }
 
+sub nextDirectChild( $curr, $limit ) {
+    $curr->nextNonBlankSibling
+}
+
 sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
     local $| = 1;
 
-    if( $search_step->{axis} eq '/' ) {
+    if( $search_step->{node} =~ /^\@/ ) {
+        my $curr = $last_step // $node;
+        say "Checking attributes for $search_step->{node}";
+        if( my @r = node_match( $curr, $search_step )) {
+            print "$search_step->{node} found\n";
+            return $r[0]
+        };
+        <>;
+
+    } elsif( $search_step->{axis} eq '/' ) {
         say "Enumerating all children";
 
         my $curr;
@@ -94,7 +109,7 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
             say "Looking at first child";
             $curr = $node->firstChild;
         } else {
-            $curr = $last_step->nextNonBlankSibling
+            $curr = nextDirectChild( $last_step, $limit )
         }
         if( ! $curr ) {
             say "No child or next (non blank) sibling found";
@@ -115,7 +130,7 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
             #    say $d->nodeName . " # " . $d->toString;
             #    $d = $d->nextNonBlankSibling;
             #}
-            $curr = $curr->nextNonBlankSibling;
+            $curr = nextDirectChild( $curr, $limit );
         }
     } elsif( $search_step->{axis} eq '//' ) {
 
@@ -145,14 +160,6 @@ sub search_xpath( $node, $search_step, $last_step=undef, $limit = $node ) {
             #}
             $curr = nextLinear($curr, $limit );
         }
-    } elsif( $search_step->{axis} eq '@' ) {
-        my $curr = $last_step // $node;
-        say "Checking attributes for $search_step->{node}";
-        if( my @r = node_match( $curr, $search_step )) {
-            print "$search_step->{node} found\n";
-            return $r[0]
-        };
-        <>;
     }
 }
 
@@ -227,8 +234,8 @@ sub trace_xpath( $query, $node ) {
 }
 
 for my $query (
-    '//a@href',
-    '//div/a@href',
+    '//a/@href',
+    '//div/a/@href',
     '/html/head/title[1]',
 ) {
 
@@ -236,6 +243,12 @@ for my $query (
     #use Data::Dumper;
     #say Dumper $_ for splitXPath( $query );
 
-    trace_xpath( $query, $doc );
+    my @found = trace_xpath( $query, $doc );
 
+    # Now check that our opinion of matches
+    # is identical to XML::LibXML
+    my @real = $doc->findnodes( $query );
+    is( \@found, \@real, "'$query' matches identically with XML::LibXML" );
 }
+
+done_testing;
