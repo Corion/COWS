@@ -92,12 +92,7 @@ sub display_location( $context, $location, $curr_step, $action ) {
 
     my $vis = node_vis( $location );
 
-    my %strategies = (
-        '/'  => \&nextDirectChild,
-        '//' => \&nextLinear,
-    );
-
-    my $strategy = $strategies{ $curr_step->{ axis } };
+    my $strategy = search_strategy( $curr_step );
 
     my @out;
 
@@ -124,6 +119,18 @@ sub prompt() {
     ReadMode 2;
     <>;
     ReadMode 0;
+}
+
+sub search_strategy( $step ) {
+    my %strategies = (
+        '/'  => \&nextDirectChild,
+        '//' => \&nextLinear,
+    );
+
+    my $strategy = $strategies{ $step->{ axis } };
+    croak "Unknown traversal strategy '$step->{ axis }'" unless $strategy;
+
+    return $strategy
 }
 
 sub nextLinear( $curr, $limit ) {
@@ -159,6 +166,7 @@ sub nextDirectChild( $curr, $limit ) {
 sub search_xpath(  $context, $node, $search_step, $last_step=undef, $limit = $node ) {
     local $| = 1;
 
+
     if( $search_step->{node} =~ /^\@/ ) {
         my $curr = $last_step // $node;
         display_step( "Checking attributes for $search_step->{node}" );
@@ -169,18 +177,20 @@ sub search_xpath(  $context, $node, $search_step, $last_step=undef, $limit = $no
         display_location( $context, $curr, $search_step, '' );
         prompt();
 
-    } elsif( $search_step->{axis} eq '/' ) {
+    } else {
+
+        my $strategy = search_strategy( $search_step );
 
         my $curr;
         if ( ! $last_step ) {
-            display_step( sprintf "Enumerating all children of %s for %s%s", $node->nodePath, $search_step->{axis}, $search_step->{node} );
+            #display_step( sprintf "Enumerating all children of %s for %s%s", $node->nodePath, $search_step->{axis}, $search_step->{node} );
             $curr = $node->firstChild;
         } else {
-            $curr = nextDirectChild( $last_step, $limit );
+            $curr = $strategy->( $last_step, $limit );
             if( $curr ) {
-                display_step(
-                    sprintf "Enumerating next children of %s after %s for %s%s", $node->nodePath, $last_step->nodePath, $search_step->{axis}, $search_step->{node}
-                );
+                #display_step(
+                #    sprintf "Enumerating next children of %s after %s for %s%s", $node->nodePath, $last_step->nodePath, $search_step->{axis}, $search_step->{node}
+                #);
             }
         }
         if( ! $curr ) {
@@ -190,38 +200,14 @@ sub search_xpath(  $context, $node, $search_step, $last_step=undef, $limit = $no
 
         while( $curr ) {
             if( node_match( $curr, $search_step )) {
-                display_step( " found" );
+                display_location( $context, $curr, $search_step, sprintf "%s found", $curr->nodePath );
                 display_location( $context, $curr, $search_step, '' );
                 prompt();
                 return ($curr, $curr)
             };
-                display_location( $context, $curr, $search_step, '' );
+            display_location( $context, $curr, $search_step, '' );
             prompt();
-            $curr = nextDirectChild( $curr, $limit );
-        }
-    } elsif( $search_step->{axis} eq '//' ) {
-
-        display_step( "Enumerating all successors" );
-
-        my $curr;
-        if( ! $last_step ) {
-            $curr = $node->firstChild
-        } else {
-            $curr = nextLinear( $last_step, $limit );
-        }
-        return (undef, undef) unless $curr;
-
-        while( $curr ) {
-                display_location( $context, $curr, $search_step, '' );
-
-            if( node_match( $curr, $search_step )) {
-                display_location( $context, $curr, $search_step, 'found' );
-                prompt();
-                return ($curr, $curr)
-            };
-                display_location( $context, $curr, $search_step, '' );
-            prompt();
-            $curr = nextLinear($curr, $limit );
+            $curr = $strategy->( $curr, $limit );
         }
     }
 }
