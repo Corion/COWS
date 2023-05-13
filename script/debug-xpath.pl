@@ -92,7 +92,13 @@ sub display_location( $context, $location, $curr_step, $action ) {
 
     my $vis = node_vis( $location );
 
-    my $strategy = search_strategy( $curr_step );
+    my $front = search_strategy( $curr_step );
+    my $back = reverse_search_strategy( $curr_step );
+    #my @next_nodes = (
+    #    (map { node_vis( $_ )} grep { $_->nodeName ne '#text' } surrounding_nodes( $location, \&prevLinear )),
+    #    '[', node_vis( $location ), ']',
+    #    (map { node_vis( $_ )} grep { $_->nodeName ne '#text' } surrounding_nodes( $location, \&nextLinear )),
+    #);
 
     my @out;
 
@@ -104,8 +110,15 @@ sub display_location( $context, $location, $curr_step, $action ) {
                              '' . ($vis x length($_->{node}))
                          } @$path;
 
-    my @next_nodes = surrounding_nodes( $location, $strategy );
-    push @out, join " ", map { node_vis( $_ ) } @next_nodes;
+    #push @out, join " ", @next_nodes;
+
+    my @surrounding_nodes = (map { node_vis( $_ )} grep { $_->nodeName ne '#text' } surrounding_nodes( $location, \&nextLinear ));
+    push @surrounding_nodes, node_vis( $location );
+    while( @surrounding_nodes < 7 ) {
+        push @surrounding_nodes, '-';
+    }
+    push @out, @surrounding_nodes;
+
     push @out, $action;
 
     $printer->output_list(@out);
@@ -125,6 +138,18 @@ sub search_strategy( $step ) {
     my %strategies = (
         '/'  => \&nextDirectChild,
         '//' => \&nextLinear,
+    );
+
+    my $strategy = $strategies{ $step->{ axis } };
+    croak "Unknown traversal strategy '$step->{ axis }'" unless $strategy;
+
+    return $strategy
+}
+
+sub reverse_search_strategy( $step ) {
+    my %strategies = (
+        '/'  => \&prevDirectChild,
+        '//' => \&prevLinear,
     );
 
     my $strategy = $strategies{ $step->{ axis } };
@@ -163,9 +188,28 @@ sub nextDirectChild( $curr, $limit ) {
     $curr->nextNonBlankSibling
 }
 
+sub prevLinear( $curr, $limit ) {
+    return if ! $curr;
+    my $prev = $curr->previousNonBlankSibling;
+    if( $prev and $prev->hasChildNodes ) {
+        return $prev->lastChild
+    } elsif( $prev ) {
+        return $prev
+    } elsif( $curr->parentNode != $limit ) {
+        #say "End of level, continuing upwards";
+        $curr = $curr->parentNode;
+    } else {
+        return
+    }
+}
+
+sub prevDirectChild( $curr, $limit ) {
+    return if ! $curr;
+    $curr->previousNonBlankSibling
+}
+
 sub search_xpath(  $context, $node, $search_step, $last_step=undef, $limit = $node ) {
     local $| = 1;
-
 
     if( $search_step->{node} =~ /^\@/ ) {
         my $curr = $last_step // $node;
@@ -316,6 +360,10 @@ sub trace_xpath( $query, $node ) {
     }
     return @found;
 }
+
+#use Data::Dumper;
+#say Dumper prevLinear( $doc->documentElement, $doc );
+#exit;
 
 for my $query (
     '//a/@href',
