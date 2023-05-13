@@ -71,7 +71,7 @@ sub node_vis( $node ) {
 sub surrounding_nodes( $node, $strategy ) {
     my @res;
     my $curr = $node;
-    for ( 1..10 ) {
+    for ( 1..5 ) {
         $curr = $strategy->($curr, $node);
         push @res, $curr
             if $curr;
