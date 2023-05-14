@@ -9,7 +9,6 @@ use Moo 2;
 no warnings 'experimental::signatures';
 
 use URI;
-use lib '/home/corion/Projekte/Corion-Scraper/lib';
 use COWS 'scrape';
 use Mojo::UserAgent;
 use Carp 'croak';
