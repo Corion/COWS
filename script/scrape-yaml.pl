@@ -37,7 +37,11 @@ has 'mungers' => (
 );
 
 sub make_url( $self, $id ) {
-    sprintf $self->base, $id
+    my $base = $self->base;
+    if( $base =~ /%/ ) {
+        $base = sprintf $base, $id
+    }
+    return $base
 }
 
 sub fetch_data( $self, $id) {
