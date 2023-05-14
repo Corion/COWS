@@ -123,9 +123,6 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
     local $context->{path} = [ @{ $context->{path} // [] }];
 
     if( ref $rules eq 'HASH' ) {
-        #my ($name,$query);
-        #my @subitems;
-
         my %_rules = %$rules;
         my $anonymous;
 
@@ -161,11 +158,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
             }
         }
 
-        my $debug;
-
-        if( delete $_rules{ debug }) {
-            $debug = 1;
-        }
+        my $debug = $options->{debug} || delete $_rules{ debug };
 
         my $single_query;
         my $attribute;
@@ -173,10 +166,9 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
         if( exists $_rules{ query } ) {
             $single_query = delete $_rules{ query };
 
-        #} elsif( keys %_rules == 1 ) {
-        #    # Single query that likely is anonymous
-        #    warn "Making up query because we only have a single rule?!";
-        #    ($single_query) = keys %_rules;
+            # What do we do if the query is an arrayref, that is, a list
+            # of alternatives to be mushed together?!
+
         }
 
         if( defined $single_query ) {
@@ -244,7 +236,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                 if @subitems > 1;
             my $name = $subitems[0];
 
-            if( $options->{debug} or $debug) {
+            if( $debug) {
                 my $str = $node->toString;
                 $str =~ s!\s+! !msg; # compress the string slightly
                 if( length $str > 80 ) {
