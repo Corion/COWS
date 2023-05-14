@@ -27,7 +27,7 @@ COWS::UserAgent - useragent for scraping
 
   my $real_data = $scraper->parse({
       items => {
-          query => "article.message"
+          query => "article.message",
           anonymous => 1,
 
           columns => [
@@ -44,13 +44,13 @@ COWS::UserAgent - useragent for scraping
               single =>  1,
             },
             { name =>  content,
-              query =>  'div.message-content > div.message-userContent > article'
+              query =>  'div.message-content > div.message-userContent > article',
               html =>  1, # fetch whole node body
               single =>  1,
               munge =>  'compress_whitespace',
             },
           ],
-
+      },
   }, $html, { url => $url });
 
 =cut
