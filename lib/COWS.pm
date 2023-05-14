@@ -85,8 +85,8 @@ sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
     my @subitems;
     my %item;
     for my $r (@$rules) {
-        # What about multiple items returned here?!
         push @subitems, scrape_xml( $node, $r, $options, $context );
+        # Can we output "item '$r->{name}' not found in debug mode here?!
     };
 
     # Now, mush up the @subitems into a hash again
