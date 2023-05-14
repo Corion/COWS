@@ -1,5 +1,5 @@
 ---
-base: "https://forum.xda-developers.com/t/rom-unofficial-13-0-ota-signature-spoofing-open-source-encryption-lineageos-20-for-galaxy-s10e-s10-s10-s10-5g-exynos.%s/page-16"
+base: "https://forum.xda-developers.com/t/rom-unofficial-13-0-ota-signature-spoofing-open-source-encryption-lineageos-20-for-galaxy-s10e-s10-s10-s10-5g-exynos.%s/"
 items: &items
     query: "article.message"
     anonymous: 1
@@ -32,9 +32,10 @@ items: &items
       - name: permalink
         query: ".message-attribution-main .u-concealed a@href"
         single: 1
-      # link
-      # summary
-      # modified
+      - name: link
+        query: ".message-attribution-main .u-concealed a@href"
+        single: 1
+        munge: url
 
 rss:
     title:
@@ -48,12 +49,17 @@ rss:
 navigation:
     prev_page:
         query:
-        - /html/head/link[@rel="prev"]@href
+        - /html/head/link[@rel="prev"]/@href
         single: 1
     next_page:
         query:
-        - /html/head/link[@rel="next"]@href
+        - /html/head/link[@rel="next"]/@href
         single: 1
+    refetch_page:
+        query:
+        - a.pageNavSimple-el--last@href
+        single: 1
+        index: 1
 columns:
     - title
     - user
