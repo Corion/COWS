@@ -131,6 +131,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 
         my $force_index;
         my $force_single;
+        my $want_node_body;
         my $munger = sub( $text ) { $text };
 
         if( exists $_rules{ index }) {
@@ -143,6 +144,10 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 
         if( exists $_rules{ single }) {
             $force_single = delete $_rules{ single };
+        }
+
+        if( exists $_rules{ html }) {
+            $want_node_body = delete $_rules{ html };
         }
 
         if( exists $_rules{ munge }) {
@@ -278,6 +283,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                 next unless $item;
                 if( @subitems) {
                     for my $rule (@subitems) {
+                        # Here we don't apply the munger?!
                         if( ref $rule ) {
                             my @res2 = scrape_xml( $item, $rule, $options, $context );
                             if( $force_single ) {
@@ -289,6 +295,11 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                                 } else {
                                     my $item = $res2[0];
                                     my $val = maybe_attr( $item, $attribute );
+
+                                    if( $want_node_body ) {
+                                        $val = $item->toString;
+                                    }
+
                                     push @res, { $name => $val };
                                 }
                             };
@@ -301,12 +312,21 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                             }
                         } else {
                             my $val = maybe_attr( $item, $attribute );
+                            if( $want_node_body ) {
+                                $val = $item->toString;
+                            }
                             push @res, { $name => $munger->( $val ) };
 
                         }
                     }
                 } else {
                     my $val = maybe_attr( $item, $attribute );
+                    if( $want_node_body ) {
+                        $val = $item->toString;
+                        # Strip the tag itself
+                        $val =~ s!^<[^>]+>!!;
+                        $val =~ s!</[^>]+>\z!!ms;
+                    }
 
                     if( $anonymous ) {
                         push @res, $munger->( $val );
