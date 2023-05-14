@@ -110,12 +110,12 @@ sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
     return \%item;
 }
 
-sub _apply_mungers( $val, $mungers ) {
+sub _apply_mungers( $val, $mungers, $node, $options ) {
     #use Data::Dumper; warn Dumper @$mungers;
     if( $mungers ) {
         my @l = ($val, @$mungers);
         use Data::Dumper; warn Dumper \@l;
-        return reduce { warn "$b( $a )"; $b ? $b->($a) : $a } @l;
+        return reduce { warn "$b( $a )"; $b ? $b->($a, $node, $options) : $a } @l;
     } else {
         return $val
     }
@@ -210,7 +210,7 @@ sub scrape_xml_single_query(%options) {
                     if( $want_node_body ) {
                         $val = $item->toString;
                     }
-                    push @res, { $name => _apply_mungers( $val => $mungers ) };
+                    push @res, { $name => _apply_mungers( $val => $mungers, $item, $options ) };
 
                 }
             }
@@ -224,12 +224,12 @@ sub scrape_xml_single_query(%options) {
             }
 
             if( $anonymous ) {
-                push @res, _apply_mungers( $val => $mungers );
+                push @res, _apply_mungers( $val => $mungers, $item, $options );
             } else {
                 if( ! $name ) {
-                    push @res, _apply_mungers( $val => $mungers );
+                    push @res, _apply_mungers( $val => $mungers, $item, $options );
                 } else {
-                    push @res, { $name => _apply_mungers( $val => $mungers )};
+                    push @res, { $name => _apply_mungers( $val => $mungers, $item, $options )};
                 }
             }
         }
