@@ -1,71 +1,5 @@
 #!perl
 use 5.020;
-
-package Scraper::FromYaml 0.1;
-use 5.020;
-use feature 'signatures';
-
-use Moo 2;
-no warnings 'experimental::signatures';
-
-use URI;
-use COWS 'scrape';
-use Mojo::UserAgent;
-use Carp 'croak';
-
-has 'ua' => (
-    is => 'lazy',
-    default => sub {
-        Mojo::UserAgent->new(
-            max_redirects => 2,
-        );
-    }
-);
-
-has 'base' => (
-    is => 'ro',
-);
-
-has 'config' => (
-    is => 'ro',
-);
-
-has 'mungers' => (
-    is => 'ro',
-);
-
-sub make_url( $self, $id ) {
-    my $base = $self->base;
-    if( $base =~ /%/ ) {
-        $base = sprintf $base, $id
-    }
-    return $base
-}
-
-sub fetch( $self, $url ) {
-    my $res = $self->ua->get( $url )->result;
-    croak "HTTP Error Code " . $res->code unless $res->code =~ /^2..$/;
-    return $res->body
-}
-
-sub fetch_item( $self, $id) {
-    return $self->fetch( $self->make_url($id));
-}
-
-sub parse( $self, $rules, $id_or_html, $options ) {
-    my $html = $id_or_html;
-    if( $id_or_html !~ /^</ ) {
-        $html = $self->fetch_item( $id_or_html );
-    };
-    return scrape( $html, $rules,
-        { debug => $options->{debug},
-          mungers => $options->{mungers} // $self->mungers,
-          url => $options->{url}
-        });
-}
-
-package main;
-
 use Getopt::Long;
 
 # Read merchant whitelist from config?
@@ -77,6 +11,7 @@ use JSON;
 use XML::Feed;
 use DateTime;
 use DateTime::Format::ISO8601;
+use COWS::UserAgent;
 
 GetOptions(
     'config|c=s'      => \my $config_file,
@@ -119,7 +54,7 @@ my %handlers = (
 );
 
 sub create_scraper( $config ) {
-    my $scraper = Scraper::FromYaml->new(
+    my $scraper = COWS::UserAgent->new(
         mungers => \%handlers,
         base => $config->{base},
         debug => $debug,

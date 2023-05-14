@@ -1,15 +1,16 @@
 .gitignore
 amazon.yaml
 Changes
-COWS-0.01/META.json
-COWS-0.01/META.yml
 examples/xda.yaml
 geizhals.yaml
 lib/COWS.pm
+lib/COWS/UserAgent.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
+META.json
+META.yml
 README
 README.mkdn
 script/debug-xpath.pl
