@@ -180,11 +180,11 @@ FETCH:
             }
         }
 
-        my $data = $scraper->parse($config->{$start_rule}, $html, { url => $url });
-        if( ref $data eq 'HASH' ) {
-            push @rows, $data;
+        my $real_data = $scraper->parse($config->{$start_rule}, $html, { url => $url });
+        if( ref $real_data eq 'HASH' ) {
+            push @rows, $real_data;
         } else {
-            push @rows, @{$data};
+            push @rows, @{$real_data};
         }
     }
 
