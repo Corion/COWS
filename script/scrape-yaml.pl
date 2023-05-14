@@ -58,7 +58,7 @@ sub parse( $self, $rules, $id_or_html, $options ) {
     if( $id_or_html !~ /^</ ) {
         $html = $self->fetch_item( $id_or_html );
     };
-    return scrape( $html, $rules, { debug => 1, mungers => $self->mungers, url => $options->{url} });
+    return scrape( $html, $rules, { debug => $debug, mungers => $self->mungers, url => $options->{url} });
 }
 
 package main;
