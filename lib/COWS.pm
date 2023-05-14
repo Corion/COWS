@@ -250,7 +250,7 @@ sub scrape_xml_single_query(%options) {
 
 sub _fix_up_selector( $q ) {
     my $attribute;
-    if( $q && $q !~ m!/! ) {
+    if( $q && $q !~ m!/! && $q !~ m!::!) {
         # We have something like a CSS selector
         if( $q =~ m!^(.*)\@([\w-]+)\z! ) {
             # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
