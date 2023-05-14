@@ -8,7 +8,7 @@ use URI;
 use YAML 'LoadFile';
 use Filesys::Notify::Simple;
 use File::Spec;
-use JSON;
+use JSON 'encode_json';
 use Text::Table;
 use XML::Feed;
 use DateTime;
@@ -170,6 +170,8 @@ FETCH:
 
     } elsif( $output_type eq 'rss' ) {
         my $f = $rows[0];
+        # we only ever output a single feed - maybe we should output multiple
+        # files, or mush all the feeds into one?!
 
         my $feed = XML::Feed->new( 'Atom', version => 2 );
 
@@ -195,6 +197,11 @@ FETCH:
         }
 
         output( $feed->as_xml, $output_file );
+
+    } elsif( $output_type eq 'json' ) {
+        output( encode_json(\@rows), $output_file);
+    } else {
+        die "Unknown output type '$output_type'";
     }
 }
 
