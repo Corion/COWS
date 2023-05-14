@@ -128,6 +128,9 @@ sub scrape_pages($config, @items) {
         @columns = $config->{columns}->@*;
     }
 
+    # Should we roll-up/flatten anything if the output format is text/table
+    # instead of JSON ?!
+
     # Can we usefully output things as RSS ?!
     use Text::Table;
     my $res = Text::Table->new(@columns);
@@ -141,7 +144,6 @@ sub do_scrape_items ( @items ) {
 }
 
 do_scrape_items( @ARGV );
-warn $interactive ? 'interactive mode' : 'batch mode';
 if( $interactive ) {
     $config_file = File::Spec->rel2abs( $config_file );
     my $watcher = Filesys::Notify::Simple->new( [$config_file] );
