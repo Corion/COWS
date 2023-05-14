@@ -75,48 +75,83 @@ use Getopt::Long;
 
 # Read merchant whitelist from config?
 use YAML 'LoadFile';
+use Filesys::Notify::Simple;
+use File::Spec;
 
 GetOptions(
-    'config|c=s' => \my $config_file,
+    'config|c=s'    => \my $config_file,
+    'interactive|i' => \my $interactive,
 );
 
-my $config = LoadFile( $config_file );
-if( ! $config->{items} ) {
-    die "$config_file: No 'items' section found";
+sub load_config( $config_file ) {
+    my $config = LoadFile( $config_file );
+    if( ! $config->{items} ) {
+        die "$config_file: No 'items' section found";
+    }
+    return $config;
 }
 
 my %handlers = (
     extract_price => \&extract_price,
+    compress_whitespace => \&compress_whitespace,
 );
 
-my $scraper = Scraper::FromYaml->new(
-    mungers => \%handlers,
-    base => $config->{base},
-);
-
-my @rows;
-for my $item (@ARGV) {
-    my $data = $scraper->parse($config->{items}, $item);
-
-    push @rows, map { $_->{item} = $item; $_ } @{$data};
+sub create_scraper( $config ) {
+    my $scraper = Scraper::FromYaml->new(
+        mungers => \%handlers,
+        base => $config->{base},
+    );
 }
 
-my @columns;
-if( ! $config->{columns}) {
-    my %columns;
-    for(@rows) {
-        for my $k (keys %$_) {
-            $columns{ $k } = 1;
-        }
+my %cache;
+sub scrape_pages($config, @items) {
+    my $scraper = create_scraper( $config );
+
+    my @rows;
+    for my $item (@items) {
+        my $data = $cache{ $item } // $scraper->parse($config->{items}, $item);
+
+        push @rows, map { $_->{item} = $item; $_ } @{$data};
     }
-    @columns = sort keys %columns;
-} else {
-    @columns = $config->{columns}->@*;
+
+    my @columns;
+    if( ! $config->{columns}) {
+        my %columns;
+        for(@rows) {
+            for my $k (keys %$_) {
+                $columns{ $k } = 1;
+            }
+        }
+        @columns = sort keys %columns;
+    } else {
+        @columns = $config->{columns}->@*;
+    }
+
+    # Can we usefully output things as RSS ?!
+    use Text::Table;
+    my $res = Text::Table->new(@columns);
+    $res->load(map { [@{ $_ }{ @columns }] } @rows);
+    say $res;
 }
 
-# Can we usefully output things as RSS ?!
-use Text::Table;
-my $res = Text::Table->new(@columns);
-$res->load(map { [@{ $_ }{ @columns }] } @rows);
-say $res;
+sub do_scrape_items ( @items ) {
+    my $config = load_config( $config_file );
+    scrape_pages( $config => @items );
+}
 
+do_scrape_items( @ARGV );
+warn $interactive ? 'interactive mode' : 'batch mode';
+if( $interactive ) {
+    $config_file = File::Spec->rel2abs( $config_file );
+    my $watcher = Filesys::Notify::Simple->new( [$config_file] );
+    $watcher->wait(sub(@ev) {
+        for( @ev ) {
+            # re-filter, since we maybe got more than we wanted
+            if( $_->{path} eq $config_file ) {
+                do_scrape_items(@ARGV)
+            #} else {
+            #    warn "Ignoring change to $_->{path}";
+            }
+        };
+    }) while 1;
+}
