@@ -1,0 +1,46 @@
+---
+base: "https://www.ecb.europa.eu/paym/intro/news/html/index.en.html"
+items: &items
+    query: "dt"
+    anonymous: 1
+    columns:
+        - name: modified
+          query: "./@isodate"
+          index: 1
+          single: 1
+        - name: title
+          query: "following-sibling::dd[1]/div[contains(@class,'title')]/a"
+          single: 1
+        - name: author
+          query: "./@isodate"
+          single: 1
+        - name: link
+          query: "following-sibling::dd[1]/div[contains(@class,'title')]/a/@href"
+          single: 1
+          munge: url
+        - name: permalink
+          query: "following-sibling::dd[1]/div[contains(@class,'title')]/a/@href"
+          single: 1
+          munge: url
+        - name: id
+          query: "following-sibling::dd[1]/div[contains(@class,'title')]/a/@href"
+          single: 1
+          munge: url
+        - name: content
+          # well, we really want to fetch/include other sites here...
+          query: "following-sibling::dd[1]/div[contains(@class,'title')]/a"
+          single: 1
+
+rss:
+    title:
+      - name: title
+        single: 1
+        query:
+          - /head/meta[@og:title]
+          - /html/head/title
+    entries: *items
+
+columns:
+    - modified
+    - title
+    - link
