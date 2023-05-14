@@ -55,6 +55,14 @@ sub extract_price( $text ) {
     $text =~ s/.*?(\d+)[.,](\d\d).*/$1.$2/r
 }
 
+sub compress_whitespace( $text ) {
+    $text =~ s!\s+! !msg;
+    $text =~ s!^\s+!!;
+    $text =~ s!\s+$!!;
+    return $text
+}
+
+
 sub parse( $self, $rules, $id_or_html ) {
     my $html = $id_or_html;
     if( $id_or_html !~ /^</ ) {
