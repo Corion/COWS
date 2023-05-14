@@ -43,18 +43,22 @@ sub make_url( $self, $id ) {
     return $base
 }
 
-sub fetch_data( $self, $id) {
-    my $res = $self->ua->get( $self->make_url($id))->result;
+sub fetch( $self, $url ) {
+    my $res = $self->ua->get( $url )->result;
     croak "Code " . $res->code unless $res->code =~ /^2..$/;
     return $res->body
 }
 
-sub parse( $self, $rules, $id_or_html ) {
+sub fetch_item( $self, $id) {
+    return $self->fetch( $self->make_url($id));
+}
+
+sub parse( $self, $rules, $id_or_html, $options ) {
     my $html = $id_or_html;
     if( $id_or_html !~ /^</ ) {
-        $html = $self->fetch_data( $id_or_html );
+        $html = $self->fetch_item( $id_or_html );
     };
-    return scrape( $html, $rules, { debug => 1, mungers => $self->mungers });
+    return scrape( $html, $rules, { debug => 1, mungers => $self->mungers, url => $options->{url} });
 }
 
 package main;
@@ -62,6 +66,7 @@ package main;
 use Getopt::Long;
 
 # Read merchant whitelist from config?
+use URI;
 use YAML 'LoadFile';
 use Filesys::Notify::Simple;
 use File::Spec;
@@ -128,8 +133,23 @@ sub scrape_pages($config, @items) {
 
     my @rows;
     for my $item (@items) {
-        my $html = $cache{ $item } // $scraper->fetch_data( $item );
-        my $data = $scraper->parse($config->{$start_rule}, $html);
+        my $url = $scraper->make_url( $item );
+
+FETCH:
+        warn "Fetching $url";
+        my $html = $cache{ $url } // $scraper->fetch( "$url" );
+
+        # first check if we need to navigate on the page to the latest page:
+        my $data = $scraper->parse($config->{'navigation'}, $html, { url => $url });
+        if( $data->{refetch_page} ) {
+            my $latest = URI->new_abs( $data->{refetch_page}, $url );
+            if( $latest ne $url ) {
+                $url = $latest;
+                goto FETCH;
+            }
+        }
+
+        my $data = $scraper->parse($config->{$start_rule}, $html, { url => $url });
         if( ref $data eq 'HASH' ) {
             push @rows, $data;
         } else {
