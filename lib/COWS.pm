@@ -176,17 +176,22 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 
         if( defined $single_query ) {
             # Fix up the query
-            if( $single_query =~ m!^(.*)\@([\w-]+)\z! ) {
-                # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
-                $single_query = $1;
-                $attribute = $2;
-            };
-            if( $single_query !~ m!//! ) {
+            if( $single_query && $single_query !~ m!/! ) {
+                # We have something like a CSS selector
+                if( $single_query =~ m!^(.*)\@([\w-]+)\z! ) {
+                    # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
+                    $single_query = $1;
+                    $attribute = $2;
+                };
                 $single_query = selector_to_xpath($single_query);
             }
+            # Queries always are relative to the current node
+            # except if they are absolute to the root element. Not ideal.
             if($single_query =~ m!^//! ) {
                 $single_query = ".$single_query";
             }
+
+            # If we stripped off the attribute before, tack it on again
             if( defined $attribute ) {
                 $single_query .= sprintf '/@%s', $attribute;
             }
