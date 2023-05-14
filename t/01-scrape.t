@@ -2,7 +2,7 @@
 use 5.020;
 use Test2::V0;
 
-use Corion::Scraper 'scrape';
+use COWS 'scrape';
 
 my $html = <<'HTML';
 <html>
