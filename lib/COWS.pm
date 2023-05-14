@@ -237,6 +237,30 @@ sub scrape_xml_single_query(%options) {
     return @res
 }
 
+sub _fix_up_selector( $q ) {
+    my $attribute;
+    if( $q && $q !~ m!/! ) {
+        # We have something like a CSS selector
+        if( $q =~ m!^(.*)\@([\w-]+)\z! ) {
+            # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
+            $q = $1;
+            $attribute = $2;
+        };
+        $q = selector_to_xpath($q);
+    }
+    # Queries always are relative to the current node
+    # except if they are absolute to the root element. Not ideal.
+    if($q =~ m!^//! ) {
+        $q = ".$q";
+    }
+
+    # If we stripped off the attribute before, tack it on again
+    if( defined $attribute ) {
+        $q .= sprintf '/@%s', $attribute;
+    }
+    return ($q, $attribute);
+}
+
 sub scrape_xml($node, $rules, $options={}, $context={} ) {
     my @res;
 
@@ -293,7 +317,6 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
         my $debug = $options->{debug} || delete $_rules{ debug };
 
         my $single_query;
-        my $attribute;
         #warn Dumper \%_rules;
         if( exists $_rules{ query } ) {
             $single_query = delete $_rules{ query };
@@ -347,27 +370,9 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
             push $context->{path}->@*, $name;
 
             for my $q (@$single_query) {
-                # Fix up the query
-                # XXX move to subroutine
-                if( $q && $q !~ m!/! ) {
-                    # We have something like a CSS selector
-                    if( $q =~ m!^(.*)\@([\w-]+)\z! ) {
-                        # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
-                        $q = $1;
-                        $attribute = $2;
-                    };
-                    $q = selector_to_xpath($q);
-                }
-                # Queries always are relative to the current node
-                # except if they are absolute to the root element. Not ideal.
-                if($q =~ m!^//! ) {
-                    $q = ".$q";
-                }
 
-                # If we stripped off the attribute before, tack it on again
-                if( defined $attribute ) {
-                    $q .= sprintf '/@%s', $attribute;
-                }
+                # Fix up the query
+                my( $query, $attribute ) = _fix_up_selector($q);
 
                 push @res, scrape_xml_single_query(
                     context        => $context,
@@ -377,7 +382,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                     name           => $name,
                     anonymous      => $anonymous,
                     subitems       => \@subitems,
-                    query          => $q,
+                    query          => $query,
                     attribute      => $attribute,
                     rules          => \%_rules,
                     mungers        => \@mungers,
