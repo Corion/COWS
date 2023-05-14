@@ -1,0 +1,64 @@
+---
+base: "https://forum.xda-developers.com/t/rom-unofficial-13-0-ota-signature-spoofing-open-source-encryption-lineageos-20-for-galaxy-s10e-s10-s10-s10-5g-exynos.%s/page-16"
+items: &items
+    query: "article.message"
+    anonymous: 1
+    #debug: 1
+    columns:
+      - name: title
+        query:
+          - /html/head/meta[@title] # yeah, we don't do namespaces
+          - /html/head/title
+        single: 1
+        index: 1
+      - name: id
+        query: "./@id"
+        single: 1
+      - name: author
+        query: "./@data-author"
+        single: 1
+      - name: avatar
+        query: "a.avatar@data-user-id"
+        single: 1
+      - name: modified
+        query: "header ul.message-attribution-main time@datetime"
+        # munge: datetime
+        single: 1
+      - name: content
+        query: "div.message-content > div.message-userContent > article"
+        html: 1 # fetch whole node body
+        single: 1
+        munge: compress_whitespace
+      - name: permalink
+        query: ".message-attribution-main .u-concealed a@href"
+        single: 1
+      # link
+      # summary
+      # modified
+
+rss:
+    title:
+      - name: title
+        single: 1
+        query:
+          - /head/meta[@og:title]
+          - /html/head/title
+    entries: *items
+
+navigation:
+    prev_page:
+        query:
+        - /html/head/link[@rel="prev"]@href
+        single: 1
+    next_page:
+        query:
+        - /html/head/link[@rel="next"]@href
+        single: 1
+columns:
+    - title
+    - user
+    - avatar
+    - postdate
+    - permalink
+    - content
+
