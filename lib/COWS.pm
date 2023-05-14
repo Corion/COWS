@@ -177,8 +177,9 @@ sub scrape_xml_single_query(%options) {
         @found = $found[ $force_index-1 ];
     } elsif( $force_single ) {
         if( @found > 1 ) {
-            use Data::Dumper;
-            warn Dumper \@found;
+            #use Data::Dumper;
+            #warn Dumper \@found;
+            say "** $_" for @found;
             croak "More than one element found for " . join " -> ", $context->{path}->@*;
         }
     }
