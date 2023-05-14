@@ -50,14 +50,16 @@ my %module = (
     },
 
     PREREQ_PM => {
-        'Exporter'           => 5, # for 'import'
-        'XML::LibXML'        => 0,
-        'Mojolicious'        => 0, # for the HTTP transport
+        'Exporter'                => 5, # for 'import'
+        'XML::LibXML'             => 0,
+        'Mojolicious'             => 0, # for the HTTP transport
 
-        'Carp'               => 0,
-        'URI'                => 0,
-        'List::Util'         => 0,
-        'Moo'                => 2, # for some hashes-as-objects
+        'Carp'                    => 0,
+        'URI'                     => 0,
+        'List::Util'              => 0,
+        'Moo'                     => 2, # for some hashes-as-objects
+        'YAML'                    => 0, # our config format
+        'Filesys::Notify::Simple' => 0,
 
         # The output formats
         'JSON'               => 0,
