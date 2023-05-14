@@ -1,0 +1,54 @@
+
+[![Windows](https://github.com/Corion/COWS/workflows/windows/badge.svg)](https://github.com/Corion/COWS/actions?query=workflow%3Awindows)
+[![MacOS](https://github.com/Corion/COWS/workflows/macos/badge.svg)](https://github.com/Corion/COWS/actions?query=workflow%3Amacos)
+[![Linux](https://github.com/Corion/COWS/workflows/linux/badge.svg)](https://github.com/Corion/COWS/actions?query=workflow%3Alinux)
+
+# NAME
+
+COWS - Corion's Own Web Scraper
+
+# SYNOPSIS
+
+    use COWS 'scrape';
+
+    my $html = '...';
+    my $rules = {
+        ...
+    };
+
+    my %mungers = (
+        ... # callbacks
+    );
+
+    my $data = scrape($html, $rules, { mungers => \%mungers });
+
+    div:       # unknown key/key which looks like a query, means query
+      anonymous: 1 # instead of creating { div => items => [] } create { items => [] }
+      items:   # how do we specify that these all get merged?! Maybe all arrays get merged?!
+        - name: price
+          query: div.gh_price
+          index: 1
+          force_single: 1
+          munge: extract_price()
+        - name: merchant
+          query: a@data-merchant-name
+          index: 1
+          force_single: 1
+        - name: url
+          query: a@href
+          index: 1
+          force_single: 1
+          absolute: 1
+    more_items:
+      - name: other_price
+        query: div.gh_price_2
+        index: 1
+        force_single: 1
+    title: /head/title # second query?!
+
+    # This would return
+    {
+      items => [ {}, {}, ... ],
+      title => '...',
+      more_items: [ ... ]
+    }
