@@ -8,6 +8,7 @@ use Exporter 'import';
 
 use XML::LibXML;
 use HTML::Selector::XPath 'selector_to_xpath';
+use List::Util 'reduce';
 
 our @EXPORT_OK = ('scrape', 'scrape_xml');
 
@@ -111,7 +112,6 @@ sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
 
 sub _apply_mungers( $val, $mungers ) {
     #use Data::Dumper; warn Dumper @$mungers;
-    use List::Util 'reduce';
     if( $mungers ) {
         my @l = ($val, @$mungers);
         use Data::Dumper; warn Dumper \@l;
