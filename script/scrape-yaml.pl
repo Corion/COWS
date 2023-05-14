@@ -9,6 +9,7 @@ use YAML 'LoadFile';
 use Filesys::Notify::Simple;
 use File::Spec;
 use JSON;
+use Text::Table;
 use XML::Feed;
 use DateTime;
 use DateTime::Format::ISO8601;
@@ -143,15 +144,12 @@ FETCH:
         # Should we roll-up/flatten anything if the output format is text/table
         # instead of JSON ?!
 
-        # Can we usefully output things as RSS ?!
-        use Text::Table;
         my $res = Text::Table->new(@columns);
         $res->load(map { [@{ $_ }{ @columns }] } @rows);
 
         output( $res, $output_file );
 
     } elsif( $output_type eq 'rss' ) {
-        # XML::Feed
         my $f = $rows[0];
 
         my $feed = XML::Feed->new( 'Atom', version => 2 );
