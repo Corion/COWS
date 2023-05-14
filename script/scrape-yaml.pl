@@ -21,8 +21,25 @@ GetOptions(
     'interactive|i'   => \my $interactive,
     'output-type|t=s' => \my $output_type,
     'output-file|o=s' => \my $output_file,
+    'scrape-item|s=s' => \my $scrape_item,
     'debug|d'         => \my $debug,
+    'verbose'         => \my $verbose,
 );
+
+$output_type //= 'table';
+
+my %default_start_rules = (
+    table => 'items',
+    rss   => 'rss',
+    json  => 'items',
+);
+$scrape_item //= $default_start_rules{ $output_type };
+if( ! $scrape_item ) {
+    if( ! exists $default_start_rules{ $output_type }) {
+        die "Unknown output type '$output_type'";
+    };
+    die "Need a start rule." unless $scrape_item;
+}
 
 sub load_config( $config_file ) {
     my $config = LoadFile( $config_file );
@@ -95,11 +112,7 @@ sub output( $str, $filename ) {
 my %cache;
 sub scrape_pages($config, @items) {
     my $scraper = create_scraper( $config );
-
-    my $start_rule = 'items';
-    if( $output_type eq 'rss' ) {
-        $start_rule = 'rss';
-    }
+    my $start_rule = $scrape_item;
 
     my @rows;
     for my $item (@items) {
