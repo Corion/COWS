@@ -78,7 +78,8 @@ use DateTime::Format::ISO8601;
 GetOptions(
     'config|c=s'      => \my $config_file,
     'interactive|i'   => \my $interactive,
-    'output-type|o=s' => \my $output_type,
+    'output-type|t=s' => \my $output_type,
+    'output-file|o=s' => \my $output_file,
     'debug|d'         => \my $debug,
 );
 
@@ -122,6 +123,34 @@ sub create_scraper( $config ) {
     );
 }
 
+sub update_file( $filename, $new_content ) {
+    my $content;
+    if( -f $filename ) {
+        open my $fh, '<', $filename
+            or die "Couldn't read '$filename': $!";
+        binmode $fh;
+        local $/;
+        $content = <$fh>;
+    };
+
+    if( $content ne $new_content ) {
+        if( open my $fh, '>', $filename ) {
+            binmode $fh;
+            print $fh $new_content;
+        } else {
+            warn "Couldn't (re)write '$filename': $!";
+        };
+    };
+}
+
+sub output( $str, $filename ) {
+    if( defined $filename ) {
+        update_file( $filename => $str );
+    } else {
+        say $str
+    }
+}
+
 my %cache;
 sub scrape_pages($config, @items) {
     my $scraper = create_scraper( $config );
@@ -136,7 +165,6 @@ sub scrape_pages($config, @items) {
         my $url = $scraper->make_url( $item );
 
 FETCH:
-        warn "Fetching $url";
         my $html = $cache{ $url } // $scraper->fetch( "$url" );
 
         # first check if we need to navigate on the page to the latest page:
@@ -179,7 +207,9 @@ FETCH:
         use Text::Table;
         my $res = Text::Table->new(@columns);
         $res->load(map { [@{ $_ }{ @columns }] } @rows);
-        say $res;
+
+        output( $res, $output_file );
+
     } elsif( $output_type eq 'rss' ) {
         # XML::Feed
         my $f = $rows[0];
@@ -207,7 +237,7 @@ FETCH:
             $feed->add_entry($entry);
         }
 
-        say $feed->as_xml;
+        output( $feed->as_xml, $output_file );
     }
 }
 
