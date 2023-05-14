@@ -14,6 +14,7 @@ use URI;
 use lib '/home/corion/Projekte/Corion-Scraper/lib';
 use COWS 'scrape';
 use Mojo::UserAgent;
+use Carp 'croak';
 
 has 'ua' => (
     is => 'lazy',
@@ -46,8 +47,8 @@ sub make_url( $self, $id ) {
 
 sub fetch_data( $self, $id) {
     my $res = $self->ua->get( $self->make_url($id))->result;
-    die "Code " . $res->code unless $res->code =~ /^2..$/;
-    $res->body
+    croak "Code " . $res->code unless $res->code =~ /^2..$/;
+    return $res->body
 }
 
 sub extract_price( $text ) {
