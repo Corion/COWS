@@ -114,8 +114,7 @@ sub _apply_mungers( $val, $mungers, $node, $options ) {
     #use Data::Dumper; warn Dumper @$mungers;
     if( $mungers ) {
         my @l = ($val, @$mungers);
-        use Data::Dumper; warn Dumper \@l;
-        return reduce { warn "$b( $a )"; $b ? $b->($a, $node, $options) : $a } @l;
+        return reduce { $b ? $b->($a, $node, $options) : $a } @l;
     } else {
         return $val
     }
@@ -357,7 +356,6 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                         $q = $1;
                         $attribute = $2;
                     };
-                    warn "<<$q>>";
                     $q = selector_to_xpath($q);
                 }
                 # Queries always are relative to the current node
