@@ -109,8 +109,9 @@ sub scrape_pages($config, @items) {
 
     my @rows;
     for my $item (@items) {
-        my $data = $cache{ $item } // $scraper->parse($config->{items}, $item);
 
+        my $html = $cache{ $item } // $scraper->fetch_data( $item );
+        my $data = $scraper->parse($config->{items}, $html);
         push @rows, map { $_->{item} = $item; $_ } @{$data};
     }
 
