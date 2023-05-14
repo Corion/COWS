@@ -44,7 +44,7 @@ sub make_url( $self, $id ) {
 
 sub fetch( $self, $url ) {
     my $res = $self->ua->get( $url )->result;
-    croak "Code " . $res->code unless $res->code =~ /^2..$/;
+    croak "HTTP Error Code " . $res->code unless $res->code =~ /^2..$/;
     return $res->body
 }
 
