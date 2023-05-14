@@ -109,10 +109,121 @@ sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
     return \%item;
 }
 
-sub scrape_xml_single_query($node, $rules, $options={}, $context={} ) {
+sub scrape_xml_single_query(%options) {
+    my $options        = $options{ options };
+    my $debug          = $options{ debug };
+    my $node           = $options{ node };
+    my $name           = $options{ name };
+    my $anonymous      = $options{ anonymous };
+    my $query          = $options{ query };
+    my $attribute      = $options{ attribute };
+    my $context        = $options{ context };
+    my $rules          = $options{ rules };
+    my $munger         = $options{ munger };
+    my $force_index    = $options{ force_index };
+    my $force_single   = $options{ force_single };
+    my $want_node_body = $options{ want_node_body };
+
     ref $rules eq 'HASH'
         or die "Internal error: Got $rules, expected HASH";
 
+    my @res;
+
+    if( $debug) {
+        my $str = $node->toString;
+        $str =~ s!\s+! !msg; # compress the string slightly
+        if( length $str > 80 ) {
+            substr( $str, 77 ) = '...';
+        }
+        say "$name [ $query ] $str"
+    }
+
+    # Make query relative to our context
+    if( $query =~ m!^//! ) {
+        $query = ".$query";
+    }
+
+    my @subitems = values %$rules;
+
+    my $items = $node->findnodes( $query );
+
+    my @found = $items->get_nodelist;
+    if( $debug ) {
+        say sprintf "Found %d nodes for $query", scalar @found;
+    }
+
+    if( defined $force_index) {
+        @found = $found[ $force_index-1 ];
+    } elsif( $force_single ) {
+        if( @found > 1 ) {
+            use Data::Dumper;
+            warn Dumper \@found;
+            croak "More than one element found for " . join " -> ", $context->{path}->@*;
+        }
+    }
+
+    for my $item (@found) {
+        next unless $item;
+        if( @subitems) {
+            for my $rule (@subitems) {
+                # Here we don't apply the munger?!
+                if( ref $rule ) {
+                    my @res2 = scrape_xml( $item, $rule, $options, $context );
+                    if( $force_single ) {
+                        if( @res2 > 1 ) {
+                            use Data::Dumper;
+                            warn Dumper \@res2;
+                            croak "More than one element found for " . join " -> ", $context->{path}->@*;
+
+                        } else {
+                            my $item = $res2[0];
+                            my $val = maybe_attr( $item, $attribute );
+
+                            if( $want_node_body ) {
+                                $val = $item->toString;
+                            }
+
+                            push @res, { $name => $val };
+                        }
+                    };
+                    if( $anonymous ) {
+                        # we expect an array of (single-element) arrays,
+                        # merge those:
+                        push @res, @res2;
+                    } else {
+                        push @res, { $name => [ scrape_xml( $item, $rule, $options, $context )] };
+                    }
+                } else {
+                    my $val = maybe_attr( $item, $attribute );
+                    if( $want_node_body ) {
+                        $val = $item->toString;
+                    }
+                    push @res, { $name => $munger->( $val ) };
+
+                }
+            }
+        } else {
+            my $val = maybe_attr( $item, $attribute );
+            if( $want_node_body ) {
+                $val = $item->toString;
+                # Strip the tag itself
+                $val =~ s!^<[^>]+>!!;
+                $val =~ s!</[^>]+>\z!!ms;
+            }
+
+            if( $anonymous ) {
+                push @res, $munger->( $val );
+            } else {
+                if( ! $name ) {
+                    push @res, $munger->( $val );
+                } else {
+                    push @res, { $name => $munger->( $val )};
+                }
+            }
+        }
+    }
+
+    return @res
 }
 
 sub scrape_xml($node, $rules, $options={}, $context={} ) {
@@ -166,31 +277,8 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
         if( exists $_rules{ query } ) {
             $single_query = delete $_rules{ query };
 
-            # What do we do if the query is an arrayref, that is, a list
-            # of alternatives to be mushed together?!
-
-        }
-
-        if( defined $single_query ) {
-            # Fix up the query
-            if( $single_query && $single_query !~ m!/! ) {
-                # We have something like a CSS selector
-                if( $single_query =~ m!^(.*)\@([\w-]+)\z! ) {
-                    # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
-                    $single_query = $1;
-                    $attribute = $2;
-                };
-                $single_query = selector_to_xpath($single_query);
-            }
-            # Queries always are relative to the current node
-            # except if they are absolute to the root element. Not ideal.
-            if($single_query =~ m!^//! ) {
-                $single_query = ".$single_query";
-            }
-
-            # If we stripped off the attribute before, tack it on again
-            if( defined $attribute ) {
-                $single_query .= sprintf '/@%s', $attribute;
+            if( ! ref $single_query) {
+                $single_query = [$single_query];
             }
         }
 
@@ -231,105 +319,52 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 
         } else {
             # we have a name and a query (where do we have the name from?!)
-            my $query = $single_query;
             croak "Nothing to do at " . join " -> ", $context->{path}->@*
                 if @subitems > 1;
             my $name = $subitems[0];
 
-            if( $debug) {
-                my $str = $node->toString;
-                $str =~ s!\s+! !msg; # compress the string slightly
-                if( length $str > 80 ) {
-                    substr( $str, 77 ) = '...';
-                }
-                say "$name [ $query ] $str"
-            }
-
             push $context->{path}->@*, $name;
 
-            # Make query relative to our context
-            if( $query =~ m!^//! ) {
-                $query = ".$query";
-            }
-
-            @subitems = values %_rules;
-
-            my $items = $node->findnodes( $query );
-
-            my @found = $items->get_nodelist;
-            if( $debug ) {
-                say sprintf "Found %d nodes for $query", scalar @found;
-            }
-
-            if( defined $force_index) {
-                @found = $found[ $force_index-1 ];
-            } elsif( $force_single ) {
-                if( @found > 1 ) {
-                    use Data::Dumper;
-                    warn Dumper \@found;
-                    croak "More than one element found for " . join " -> ", $context->{path}->@*;
+            for my $q (@$single_query) {
+                # Fix up the query
+                # XXX move to subroutine
+                if( $q && $q !~ m!/! ) {
+                    # We have something like a CSS selector
+                    if( $q =~ m!^(.*)\@([\w-]+)\z! ) {
+                        # we have a query for an attribute, and selector_to_xpath doesn't like attributes-with-dashes :(
+                        $q = $1;
+                        $attribute = $2;
+                    };
+                    warn "<<$q>>";
+                    $q = selector_to_xpath($q);
                 }
-            }
-
-            for my $item (@found) {
-                next unless $item;
-                if( @subitems) {
-                    for my $rule (@subitems) {
-                        # Here we don't apply the munger?!
-                        if( ref $rule ) {
-                            my @res2 = scrape_xml( $item, $rule, $options, $context );
-                            if( $force_single ) {
-                                if( @res2 > 1 ) {
-                                    use Data::Dumper;
-                                    warn Dumper \@res2;
-                                    croak "More than one element found for " . join " -> ", $context->{path}->@*;
-
-                                } else {
-                                    my $item = $res2[0];
-                                    my $val = maybe_attr( $item, $attribute );
-
-                                    if( $want_node_body ) {
-                                        $val = $item->toString;
-                                    }
-
-                                    push @res, { $name => $val };
-                                }
-                            };
-                            if( $anonymous ) {
-                                # we expect an array of (single-element) arrays,
-                                # merge those:
-                                push @res, @res2;
-                            } else {
-                                push @res, { $name => [ scrape_xml( $item, $rule, $options, $context )] };
-                            }
-                        } else {
-                            my $val = maybe_attr( $item, $attribute );
-                            if( $want_node_body ) {
-                                $val = $item->toString;
-                            }
-                            push @res, { $name => $munger->( $val ) };
-
-                        }
-                    }
-                } else {
-                    my $val = maybe_attr( $item, $attribute );
-                    if( $want_node_body ) {
-                        $val = $item->toString;
-                        # Strip the tag itself
-                        $val =~ s!^<[^>]+>!!;
-                        $val =~ s!</[^>]+>\z!!ms;
-                    }
-
-                    if( $anonymous ) {
-                        push @res, $munger->( $val );
-                    } else {
-                        if( ! $name ) {
-                            push @res, $munger->( $val );
-                        } else {
-                            push @res, { $name => $munger->( $val )};
-                        }
-                    }
+                # Queries always are relative to the current node
+                # except if they are absolute to the root element. Not ideal.
+                if($q =~ m!^//! ) {
+                    $q = ".$q";
                 }
+
+                # If we stripped off the attribute before, tack it on again
+                if( defined $attribute ) {
+                    $q .= sprintf '/@%s', $attribute;
+                }
+
+                push @res, scrape_xml_single_query(
+                    context        => $context,
+                    options        => $options,
+                    debug          => $debug,
+                    node           => $node,
+                    name           => $name,
+                    anonymous      => $anonymous,
+                    subitems       => \@subitems,
+                    query          => $q,
+                    attribute      => $attribute,
+                    rules          => \%_rules,
+                    munger         => $munger,
+                    force_index    => $force_index,
+                    force_single   => $force_single,
+                    want_node_body => $want_node_body,
+                );
             }
         }
 
