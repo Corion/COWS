@@ -22,14 +22,24 @@ COWS - Corion's Own Web Scraper
 
     my $html = '...';
     my $rules = {
-        ...
+        items => { query => 'a@href',
+                   name => 'links',
+                   munge => ['absolute'],
+                 },
     };
 
     my %mungers = (
-        ... # callbacks
+        # callbacks
+        absolute => sub( $text, $node, $info ) {
+            use URI;
+            return URI->new_abs( $text, $info->{url} );
+        },
     );
 
-    my $data = scrape($html, $rules, { mungers => \%mungers });
+    my $data = scrape($html, $rules, {
+        mungers => \%mungers,
+        url => 'https://example.com'
+    });
 
 =cut
 
