@@ -90,9 +90,11 @@ sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
 
     # Now, mush up the @subitems into a hash again
     for my $i (@subitems) {
-        if( ref $i ne 'HASH' ) {
+        next unless $i;
+
+        if( $i and ref $i ne 'HASH' ) {
             use Data::Dumper;
-            die Dumper \@subitems;
+            die 'Not a hash: ' . Dumper \@subitems;
         };
         my ($name, $value) = %{$i};
         if( exists $item{ $name }) {
