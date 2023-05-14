@@ -216,8 +216,8 @@ FETCH:
 
         my $feed = XML::Feed->new( 'Atom', version => 2 );
 
-        $feed->id("http://".time.rand()."/");
-        $feed->title($f->{title});
+        $feed->id($f->{title}->{title});
+        $feed->title($f->{title}->{title});
         #$feed->link(...); # self-url!
         #$feed->self_link($cgi->url( -query => 1, -full => 1, -rewrite => 1) );
         #$feed->modified(DateTime->now);
