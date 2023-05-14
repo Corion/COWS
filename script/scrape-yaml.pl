@@ -1,6 +1,7 @@
 #!perl
 use 5.020;
-use Getopt::Long;
+use feature 'signatures';
+no warnings 'experimental::signatures';
 
 # Read merchant whitelist from config?
 use URI;
@@ -12,6 +13,7 @@ use XML::Feed;
 use DateTime;
 use DateTime::Format::ISO8601;
 use COWS::UserAgent;
+use Getopt::Long;
 
 GetOptions(
     'config|c=s'      => \my $config_file,
