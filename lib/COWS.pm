@@ -109,6 +109,18 @@ sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
     return \%item;
 }
 
+sub _apply_mungers( $val, $mungers ) {
+    #use Data::Dumper; warn Dumper @$mungers;
+    use List::Util 'reduce';
+    if( $mungers ) {
+        my @l = ($val, @$mungers);
+        use Data::Dumper; warn Dumper \@l;
+        return reduce { warn "$b( $a )"; $b ? $b->($a) : $a } @l;
+    } else {
+        return $val
+    }
+}
+
 sub scrape_xml_single_query(%options) {
     my $options        = $options{ options };
     my $debug          = $options{ debug };
@@ -119,7 +131,7 @@ sub scrape_xml_single_query(%options) {
     my $attribute      = $options{ attribute };
     my $context        = $options{ context };
     my $rules          = $options{ rules };
-    my $munger         = $options{ munger };
+    my $mungers        = $options{ mungers };
     my $force_index    = $options{ force_index };
     my $force_single   = $options{ force_single };
     my $want_node_body = $options{ want_node_body };
@@ -198,7 +210,7 @@ sub scrape_xml_single_query(%options) {
                     if( $want_node_body ) {
                         $val = $item->toString;
                     }
-                    push @res, { $name => $munger->( $val ) };
+                    push @res, { $name => _apply_mungers( $val => $mungers ) };
 
                 }
             }
@@ -212,12 +224,12 @@ sub scrape_xml_single_query(%options) {
             }
 
             if( $anonymous ) {
-                push @res, $munger->( $val );
+                push @res, _apply_mungers( $val => $mungers );
             } else {
                 if( ! $name ) {
-                    push @res, $munger->( $val );
+                    push @res, _apply_mungers( $val => $mungers );
                 } else {
-                    push @res, { $name => $munger->( $val )};
+                    push @res, { $name => _apply_mungers( $val => $mungers )};
                 }
             }
         }
@@ -240,7 +252,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
         my $force_index;
         my $force_single;
         my $want_node_body;
-        my $munger = sub( $text ) { $text };
+        my @mungers;
 
         if( exists $_rules{ index }) {
             $force_index = delete $_rules{ index };
@@ -260,13 +272,23 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 
         if( exists $_rules{ munge }) {
             my $m = delete $_rules{ munge };
-            if( ref $m) { # code ref
-                $munger = $m;
-            } elsif( $options->{mungers}->{ $m }) { # name
-                $munger = $options->{mungers}->{ $m };
-            } else {
-                croak "Got an unknown munger name '$m'";
+
+            if( ! ref $m or ref $m ne 'ARRAY') {
+                $m = [$m];
             }
+
+            @mungers = map {
+                my $m = $_;
+                my $munger;
+                if( ref $m ) { # code ref
+                    $munger = $m;
+                } elsif( $options->{mungers}->{ $m }) { # name
+                    $munger = $options->{mungers}->{ $m };
+                } else {
+                    croak "Got an unknown munger name '$m'";
+                }
+                $munger
+            } @$m;
         }
 
         my $debug = $options->{debug} || delete $_rules{ debug };
@@ -360,7 +382,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
                     query          => $q,
                     attribute      => $attribute,
                     rules          => \%_rules,
-                    munger         => $munger,
+                    mungers        => \@mungers,
                     force_index    => $force_index,
                     force_single   => $force_single,
                     want_node_body => $want_node_body,
