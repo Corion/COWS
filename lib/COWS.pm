@@ -267,7 +267,9 @@ sub _fix_up_selector( $q ) {
 
     # If we stripped off the attribute before, tack it on again
     if( defined $attribute ) {
-        $q .= sprintf '/@%s', $attribute;
+        if( $q ) {
+            $q .= sprintf '/@%s', $attribute;
+        } else { $q = './@'.$attribute }
     }
     return ($q, $attribute);
 }
