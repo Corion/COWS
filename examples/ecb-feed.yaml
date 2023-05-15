@@ -29,6 +29,8 @@ items: &items
         - name: content
           # well, we really want to fetch/include other sites here...
           query: "following-sibling::dd[1]/div[contains(@class,'title')]/a"
+          # handler: ecb-item.yaml
+          # follow-link: 1
           single: 1
 
 rss:
