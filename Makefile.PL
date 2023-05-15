@@ -60,6 +60,7 @@ my %module = (
         'Moo'                     => 2, # for some hashes-as-objects
         'YAML'                    => 0, # our config format
         'Filesys::Notify::Simple' => 0,
+        'HTML::Selector::XPath'   => 0,
 
         # The output formats
         'JSON'               => 0,
