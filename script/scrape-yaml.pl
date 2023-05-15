@@ -32,6 +32,7 @@ my %default_start_rules = (
     table => 'items',
     rss   => 'rss',
     json  => 'items',
+    # output via TT / Mojolicious::Template?
 );
 $scrape_item //= $default_start_rules{ $output_type };
 if( ! $scrape_item ) {
