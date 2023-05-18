@@ -143,30 +143,30 @@ sub scrape_page( %options ) {
     my $rows = [];
 
 FETCH:
-        say $url if( $verbose );
-        my $html = $cache->{ $url } // $scraper->fetch( "$url" );
+    say $url if( $verbose );
+    my $html = $cache->{ $url } // $scraper->fetch( "$url" );
 
-        # first check if we need to navigate on the page to the latest page:
-        if( $config->{navigation} ) {
-            my $data = $scraper->parse($config->{navigation}, $html, { url => $url, item => $item });
-            if( $data->{refetch_page} ) {
-                my $latest = URI->new_abs( $data->{refetch_page}, $url );
-                if( $latest ne $url ) {
-                    $url = $latest;
-                    goto FETCH;
-                }
+    # first check if we need to navigate on the page to the latest page:
+    if( $config->{navigation} ) {
+        my $data = $scraper->parse($config->{navigation}, $html, { url => $url, item => $item });
+        if( $data->{refetch_page} ) {
+            my $latest = URI->new_abs( $data->{refetch_page}, $url );
+            if( $latest ne $url ) {
+                $url = $latest;
+                goto FETCH;
             }
         }
-        my $real_data = $scraper->parse($config->{$start_rule}, $html, { url => $url, item => $item });
-        if( ref $real_data eq 'HASH' ) {
-            push @$rows, $real_data;
-        } else {
-            push @$rows, map {
-                $_->{item} //= $item;
-                $_->{url}  //= $url;
-                $_
-            } @{$real_data};
-        }
+    }
+    my $real_data = $scraper->parse($config->{$start_rule}, $html, { url => $url, item => $item });
+    if( ref $real_data eq 'HASH' ) {
+        push @$rows, $real_data;
+    } else {
+        push @$rows, map {
+            $_->{item} //= $item;
+            $_->{url}  //= $url;
+            $_
+        } @{$real_data};
+    }
 
     return $rows
 }
