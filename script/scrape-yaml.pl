@@ -16,6 +16,9 @@ use DateTime::Format::ISO8601;
 use COWS::UserAgent;
 use Getopt::Long;
 
+use lib '../App-moveyear/lib';
+use Date::Extract 'guess_ymd';
+
 GetOptions(
     'config|c=s'      => \my $config_file,
     'interactive|i'   => \my $interactive,
@@ -66,6 +69,11 @@ sub url( $text, $node, $info ) {
     die "No URL in " . Dumper $info
         unless exists $info->{url};
     $text = "" . URI->new_abs( $text, $info->{url} );
+}
+
+sub extract_date( $text, $node, $info ) {
+    my $dt = guess_ymd($text);
+    return sprintf '%d-%02d-%02d', $dt->{year}, $dt->{month}, $dt->{day};
 }
 
 my %handlers = (
