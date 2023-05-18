@@ -69,15 +69,16 @@ sub url( $text, $node, $info ) {
 }
 
 my %handlers = (
-    extract_price => \&extract_price,
+    extract_price       => \&extract_price,
     compress_whitespace => \&compress_whitespace,
-    url => \&url,
+    url                 => \&url,
+    date                => \&extract_date,
 );
 
 sub create_scraper( $config ) {
     my $scraper = COWS::UserAgent->new(
         mungers => \%handlers,
-        base => $config->{base},
+        base    => $config->{base},
         debug => $debug,
     );
 }
@@ -219,7 +220,10 @@ if( $interactive ) {
         for( @ev ) {
             # re-filter, since we maybe got more than we wanted
             if( $_->{path} eq $config_file ) {
-                do_scrape_items(@ARGV)
+                eval {
+                    do_scrape_items(@ARGV)
+                };
+                warn $@ if $@;
             #} else {
             #    warn "Ignoring change to $_->{path}";
             }
