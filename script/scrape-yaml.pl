@@ -2,6 +2,7 @@
 use 5.020;
 use feature 'signatures';
 no warnings 'experimental::signatures';
+use Carp 'croak';
 
 # Read merchant whitelist from config?
 use URI;
@@ -119,18 +120,31 @@ sub output( $str, $filename ) {
     }
 }
 
-my %cache;
-sub scrape_pages($config, @items) {
-    my $scraper = create_scraper( $config );
-    my $start_rule = $scrape_item;
+sub scrape_page( %options ) {
+    my $config = delete $options{ config };
+    my $cache = delete $options{ cache } // {};
+    my $start_rule = delete $options{ start_rule };
 
-    my @rows;
-    for my $item (@items) {
-        my $url = $scraper->make_url( $item );
+    my $url = delete $options{ url };
+    if( ! $url and ! exists $options{ item }) {
+        croak "Need an item or url to scrape";
+    }
+
+    my $item = delete $options{ item };
+
+    my $scraper = delete $options{ ua }
+        or croak "Need an UserAgent";
+    $url //= $scraper->make_url( $item );
+
+    if( ! exists $config->{ $start_rule }) {
+        croak "Start rule '$start_rule' does not exist in scraper config";
+    }
+
+    my $rows = [];
 
 FETCH:
         say $url if( $verbose );
-        my $html = $cache{ $url } // $scraper->fetch( "$url" );
+        my $html = $cache->{ $url } // $scraper->fetch( "$url" );
 
         # first check if we need to navigate on the page to the latest page:
         if( $config->{navigation} ) {
@@ -145,18 +159,34 @@ FETCH:
         }
         my $real_data = $scraper->parse($config->{$start_rule}, $html, { url => $url, item => $item });
         if( ref $real_data eq 'HASH' ) {
-            push @rows, $real_data;
+            push @$rows, $real_data;
         } else {
-            push @rows, map {
+            push @$rows, map {
                 $_->{item} //= $item;
                 $_->{url}  //= $url;
                 $_
             } @{$real_data};
         }
-    }
+
+    return $rows
+}
+
+my %cache;
+sub scrape_pages($config, @items) {
+    my $scraper = create_scraper( $config );
+
+    my @rows;
+    for my $item (@items) {
+        push @rows, scrape_page(
+            ua => $scraper,
+            cache => \%cache,
+            start_rule => $scrape_item,
+            config => $config,
+            item => $item,
+        )->@*;
+    };
 
     output_data( $config, $output_type, \@rows );
-
 }
 
 sub output_data( $config, $output_type, $rows ) {
