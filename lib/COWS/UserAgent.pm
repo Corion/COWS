@@ -25,7 +25,7 @@ COWS::UserAgent - useragent for scraping
   my $url = $scraper->make_url( $item );
   my $html = $cache{ $url } // $scraper->fetch( "$url" );
 
-  my $real_data = $scraper->parse({
+  my $data = $scraper->parse({
       items => {
           query => "article.message",
           anonymous => 1,
