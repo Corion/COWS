@@ -155,12 +155,17 @@ FETCH:
         }
     }
 
+    output_data( $config, $output_type, \@rows );
+
+}
+
+sub output_data( $config, $output_type, $rows ) {
     if( $output_type eq 'table' ) {
 
         my @columns;
         if( ! $config->{columns}) {
             my %columns;
-            for(@rows) {
+            for(@$rows) {
                 for my $k (keys %$_) {
                     $columns{ $k } = 1;
                 }
@@ -174,12 +179,12 @@ FETCH:
         # instead of JSON ?!
 
         my $res = Text::Table->new(@columns);
-        $res->load(map { [@{ $_ }{ @columns }] } @rows);
+        $res->load(map { [@{ $_ }{ @columns }] } @$rows);
 
         output( $res, $output_file );
 
     } elsif( $output_type eq 'rss' ) {
-        my $f = $rows[0];
+        my $f = $rows->[0];
         # we only ever output a single feed - maybe we should output multiple
         # files, or mush all the feeds into one?!
 
@@ -209,7 +214,7 @@ FETCH:
         output( $feed->as_xml, $output_file );
 
     } elsif( $output_type eq 'json' ) {
-        output( encode_json(\@rows), $output_file);
+        output( encode_json($rows), $output_file);
     } else {
         die "Unknown output type '$output_type'";
     }
