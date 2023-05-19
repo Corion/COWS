@@ -6,7 +6,7 @@ use Moo 2;
 no warnings 'experimental::signatures';
 
 use URI;
-use COWS 'scrape';
+use COWS;
 use Mojo::UserAgent;
 use Carp 'croak';
 
@@ -21,37 +21,37 @@ COWS::UserAgent - useragent for scraping
       mungers => \%handlers,
       base => 'https://example.com/%s',
       debug => $debug,
-  );
-  my $url = $scraper->make_url( $item );
-  my $html = $cache{ $url } // $scraper->fetch( "$url" );
+      start_rule => 'items',
+      config => {
+        items => {
+            query => "article.message",
+            anonymous => 1,
 
-  my $data = $scraper->parse({
-      items => {
-          query => "article.message",
-          anonymous => 1,
-
-          columns => [
-            { name =>  'author',
-              query =>  "./@data-author",
-              single =>  1,
-            },
-            { name => 'avatar',
-              query =>  'a.avatar@data-user-id',
-              single =>  1,
-            },
-            { name =>  modified,
-              query =>  'header ul.message-attribution-main time@datetime',
-              single =>  1,
-            },
-            { name =>  content,
-              query =>  'div.message-content > div.message-userContent > article',
-              html =>  1, # fetch whole node body
-              single =>  1,
-              munge =>  'compress_whitespace',
-            },
-          ],
+            columns => [
+              { name =>  'author',
+                query =>  "./@data-author",
+                single =>  1,
+              },
+              { name => 'avatar',
+                query =>  'a.avatar@data-user-id',
+                single =>  1,
+              },
+              { name =>  modified,
+                query =>  'header ul.message-attribution-main time@datetime',
+                single =>  1,
+              },
+              { name =>  content,
+                query =>  'div.message-content > div.message-userContent > article',
+                html =>  1, # fetch whole node body
+                single =>  1,
+                munge =>  'compress_whitespace',
+              },
+            ],
+        },
       },
-  }, $html, { url => $url });
+  );
+
+  my $data = $scraper->scrape({ url => $url });
 
 =head1 ACCESSORS
 
@@ -134,7 +134,7 @@ sub fetch_item( $self, $id) {
     return $self->fetch( $self->make_url($id));
 }
 
-=head2 C<< ->parser >>
+=head2 C<< ->parse >>
 
   my $data = $ua->parse({
       items => {
@@ -163,11 +163,65 @@ sub parse( $self, $rules, $id_or_html, $options ) {
     if( $id_or_html !~ /^</ ) {
         $html = $self->fetch_item( $id_or_html );
     };
-    return scrape( $html, $rules,
+    return COWS::scrape( $html, $rules,
         { debug => $options->{debug},
           mungers => $options->{mungers} // $self->mungers,
           url => $options->{url}
         });
+}
+
+sub scrape( $self, %options ) {
+    my $config = delete $options{ config };
+    my $cache = delete $options{ cache } // {};
+    my $start_rule = delete $options{ start_rule };
+    my $info = delete $options{ info } // {};
+
+    my $url = delete $options{ url };
+    if( ! $url and ! exists $options{ item }) {
+        croak "Need an item or url to scrape";
+    }
+    my $item = delete $options{ item };
+    $url //= $self->make_url( $item );
+
+    my $verbose = delete $options{ verbose };
+
+    if( ! exists $config->{ $start_rule }) {
+        croak "Start rule '$start_rule' does not exist in scraper config";
+    }
+
+    my $rows = [];
+
+FETCH:
+    say $url if( $verbose );
+    my $html = $cache->{ $url } // $self->fetch( "$url" );
+
+    # first check if we need to navigate on the page to the latest page:
+    if( $config->{navigation} ) {
+        $info->{ url } = $url;
+        $info->{ item } = $item;
+        my $data = $self->parse($config->{navigation}, $html, $info );
+        if( $data->{refetch_page} ) {
+            my $latest = URI->new_abs( $data->{refetch_page}, $url );
+            if( $latest ne $url ) {
+                $url = $latest;
+                goto FETCH;
+            }
+        }
+    }
+    $info->{ url } = $url;
+    $info->{ item } = $item;
+    my $real_data = $self->parse($config->{$start_rule}, $html, $info);
+    if( ref $real_data eq 'HASH' ) {
+        push @$rows, $real_data;
+    } else {
+        push @$rows, map {
+            $_->{item} //= $item;
+            $_->{url}  //= $url;
+            $_
+        } @{$real_data};
+    }
+
+    return $rows
 }
 
 1;
