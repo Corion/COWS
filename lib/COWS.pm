@@ -61,7 +61,7 @@ COWS - Corion's Own Web Scraper
         query: a@href
         index: 1
         force_single: 1
-        absolute: 1
+        munge: absolute
   more_items:
     - name: other_price
       query: div.gh_price_2
