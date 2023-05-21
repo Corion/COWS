@@ -52,7 +52,7 @@ COWS - Corion's Own Web Scraper
         query: div.gh_price
         index: 1
         force_single: 1
-        munge: extract_price()
+        munge: extract_price
       - name: merchant
         query: a@data-merchant-name
         index: 1
