@@ -1,33 +1,25 @@
 ---
 base: "%s"
-items: &items
-    query: "main"
-    anonymous: 1
-    columns:
-        - name: date
-          query: "p.ecb-publicationDate"
-          index: 1
-          single: 1
-          munge: date
-        - name: title
-          query: "./div[contains(@class,'title')]"
-          single: 1
-        - name: content
-          # well, we really want to fetch/include other sites here...
-          query: "div.section"
-          html: 1
-          # handler: ecb-item.yaml
-          # follow-link: 1
-          single: 1
-
-rss:
-    title:
-      - name: title
-        single: 1
-        query:
-          - /head/meta[@og:title]
-          - /html/head/title
-    entries: *items
+items:
+    - query: "main"
+      discard: 1
+      fields:
+          - name: date
+            query: "p.ecb-publicationDate"
+            index: 1
+            single: 1
+            munge: date
+            debug: 1
+          - name: title
+            query: "./div[contains(@class,'title')]"
+            single: 1
+          - name: content
+            # well, we really want to fetch/include other sites here...
+            query: "div.section"
+            html: 1
+            # handler: ecb-item.yaml
+            # follow-link: 1
+            single: 1
 
 columns:
     - date

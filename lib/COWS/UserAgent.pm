@@ -22,12 +22,12 @@ COWS::UserAgent - useragent for scraping
       base => 'https://example.com/%s',
       debug => $debug,
       start_rule => 'items',
-      config => {
-        items => {
+      config => [
+        {
             query => "article.message",
-            anonymous => 1,
+            discard => 1,
 
-            columns => [
+            fields => [
               { name =>  'author',
                 query =>  "./@data-author",
                 single =>  1,
@@ -48,7 +48,7 @@ COWS::UserAgent - useragent for scraping
               },
             ],
         },
-      },
+      ],
   );
 
   my $data = $scraper->scrape({ url => $url });
@@ -125,8 +125,14 @@ sub make_url( $self, $id ) {
 }
 
 sub fetch( $self, $url ) {
+    if( $url !~ /^http/i ) {
+        croak "Internal error: malformed URL '$url'";
+    };
+
     my $res = $self->ua->get( $url )->result;
-    croak "HTTP Error Code " . $res->code unless $res->code =~ /^2..$/;
+    croak sprintf "HTTP Error Code %d: %s",
+         $res->code, $res->message
+        unless $res->code =~ /^2..$/;
     return $res->body
 }
 
@@ -136,12 +142,12 @@ sub fetch_item( $self, $id) {
 
 =head2 C<< ->parse >>
 
-  my $data = $ua->parse({
-      items => {
+  my $data = $ua->parse([
+      {
           query => "article.message",
-          anonymous => 1,
+          discard => 1,
 
-          columns => [
+          fields => [
             { name =>  'author',
               query =>  "./@data-author",
               single =>  1,
@@ -152,7 +158,7 @@ sub fetch_item( $self, $id) {
             },
           ]
       }
-  }, 'searchitem', {
+  ], 'searchitem', {
       url => $url, # info passed to
   });
 
@@ -160,7 +166,7 @@ sub fetch_item( $self, $id) {
 
 sub parse( $self, $rules, $id_or_html, $options ) {
     my $html = $id_or_html;
-    if( $id_or_html !~ /^</ ) {
+    if( $id_or_html !~ /^\s*</ ) {
         $html = $self->fetch_item( $id_or_html );
     };
     return COWS::scrape( $html, $rules,

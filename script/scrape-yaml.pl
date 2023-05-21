@@ -134,12 +134,14 @@ sub scrape_pages($config, @items) {
             item => $item,
         )->@*;
     };
-
     output_data( $config, $output_type, \@rows );
 }
 
 sub output_data( $config, $output_type, $rows ) {
     if( $output_type eq 'table' ) {
+
+        # Flatten the results
+        @$rows = map { @{ $_->{$scrape_item }} } @$rows;
 
         my @columns;
         if( ! $config->{columns}) {
@@ -169,8 +171,8 @@ sub output_data( $config, $output_type, $rows ) {
 
         my $feed = XML::Feed->new( 'Atom', version => 2 );
 
-        $feed->id($f->{title}->{title});
-        $feed->title($f->{title}->{title});
+        $feed->id($f->{title});
+        $feed->title($f->{title});
         #$feed->link(...); # self-url!
         #$feed->self_link($cgi->url( -query => 1, -full => 1, -rewrite => 1) );
         #$feed->modified(DateTime->now);

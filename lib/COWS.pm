@@ -18,15 +18,80 @@ COWS - Corion's Own Web Scraper
 
 =head1 SYNOPSIS
 
+XXX This needs restructuring. Each item should be a hashref.
+
+    [
+        {
+            name => 'my_post',
+            parts => [
+                {foo},
+                {bar},
+                {baz}
+            ],
+        },
+    ],
+
+=head2 Structured items
+
+We want
+
+  items => [
+      {
+          content => '...',
+          children => [
+              { content => '...', children => [], },
+              { content => '...', children => [], },
+              { content => '...', children => [], },
+          ],
+      },
+      { content => '...', children => [], },
+  ]
+
+What kind of config gets us there (recursive stuff nonwithstanding)?
+
+Why do we want to have a hashref if we discard the name?!
+Maybe we want something like C<children>, but how to specify multiple
+connected sets of collections?!
+Something like
+
+    [
+        {
+            name => '???', # ignored
+            single => 1,
+            query => './p', # ...
+            fields => [ # "children" ?!
+                {
+                    name    => 'content'
+                    query   => './text()',
+                    single  => 1,
+                },
+                {
+                    name    => 'children',
+                    query   => './p',
+                    # how do we specify the recursion?!
+                    # I guess one level deeper...
+                    fields  => [ $_[ this ] ],
+                },
+            ],
+        },
+    ]
+
+results in
+
+    {
+        ...
+    }
+
+
     use COWS 'scrape';
 
     my $html = '...';
-    my $rules = {
-        items => { query => 'a@href',
-                   name => 'links',
-                   munge => ['absolute'],
-                 },
-    };
+    my $rules = [
+        { query => 'a@href',
+          name  => 'links',
+          munge => ['absolute'],
+        },
+    ];
 
     my %mungers = (
         # callbacks
@@ -88,38 +153,6 @@ sub maybe_attr( $item, $attribute ) {
     return $val;
 }
 
-sub scrape_xml_list($node, $rules, $options={}, $context={} ) {
-    ref $rules eq 'ARRAY'
-        or die "Internal error: Got $rules, expected ARRAY";
-
-    my @subitems;
-    my %item;
-    for my $r (@$rules) {
-        push @subitems, scrape_xml( $node, $r, $options, $context );
-        # Can we output "item '$r->{name}' not found in debug mode here?!
-    };
-
-    # Now, mush up the @subitems into a hash again
-    for my $i (@subitems) {
-        next unless $i;
-
-        if( $i and ref $i ne 'HASH' ) {
-            use Data::Dumper;
-            die 'Not a hash: ' . Dumper \@subitems;
-        };
-        my ($name, $value) = %{$i};
-        if( exists $item{ $name }) {
-            use Data::Dumper;
-            warn Dumper \%item;
-            warn Dumper $i;
-            croak "Duplicate item '$name' found :/";
-        }
-        $item{ $name } = $value;
-    }
-
-    return \%item;
-}
-
 sub _apply_mungers( $val, $mungers, $node, $options ) {
     #use Data::Dumper; warn Dumper @$mungers;
     if( $mungers ) {
@@ -130,123 +163,6 @@ sub _apply_mungers( $val, $mungers, $node, $options ) {
     }
 }
 
-sub scrape_xml_single_query(%options) {
-    my $options        = $options{ options };
-    my $debug          = $options{ debug };
-    my $node           = $options{ node };
-    my $name           = $options{ name };
-    my $anonymous      = $options{ anonymous };
-    my $query          = $options{ query };
-    my $attribute      = $options{ attribute };
-    my $context        = $options{ context };
-    my $rules          = $options{ rules };
-    my $mungers        = $options{ mungers };
-    my $force_index    = $options{ force_index };
-    my $force_single   = $options{ force_single };
-    my $want_node_body = $options{ want_node_body };
-
-    ref $rules eq 'HASH'
-        or die "Internal error: Got $rules, expected HASH";
-
-    my @res;
-
-    if( $debug) {
-        my $str = $node->toString;
-        $str =~ s!\s+! !msg; # compress the string slightly
-        if( length $str > 80 ) {
-            substr( $str, 77 ) = '...';
-        }
-        say "$name [ $query ] $str"
-    }
-
-    # Make query relative to our context
-    if( $query =~ m!^//! ) {
-        $query = ".$query";
-    }
-
-    my @subitems = values %$rules;
-
-    my $items = $node->findnodes( $query );
-
-    my @found = $items->get_nodelist;
-    if( $debug ) {
-        say sprintf "Found %d nodes for $query", scalar @found;
-    }
-
-    if( defined $force_index) {
-        @found = $found[ $force_index-1 ];
-    } elsif( $force_single ) {
-        if( @found > 1 ) {
-            #use Data::Dumper;
-            #warn Dumper \@found;
-            say "** $_" for @found;
-            croak "More than one element found for " . join " -> ", $context->{path}->@*;
-        }
-    }
-
-    for my $item (@found) {
-        next unless $item;
-        if( @subitems) {
-            for my $rule (@subitems) {
-                # Here we don't apply the munger?!
-                if( ref $rule ) {
-                    my @res2 = scrape_xml( $item, $rule, $options, $context );
-                    if( $force_single ) {
-                        if( @res2 > 1 ) {
-                            use Data::Dumper;
-                            warn Dumper \@res2;
-                            croak "More than one element found for " . join " -> ", $context->{path}->@*;
-
-                        } else {
-                            my $item = $res2[0];
-                            my $val = maybe_attr( $item, $attribute );
-
-                            if( $want_node_body ) {
-                                $val = $item->toString;
-                            }
-
-                            push @res, { $name => $val };
-                        }
-                    };
-                    if( $anonymous ) {
-                        # we expect an array of (single-element) arrays,
-                        # merge those:
-                        push @res, @res2;
-                    } else {
-                        push @res, { $name => [ scrape_xml( $item, $rule, $options, $context )] };
-                    }
-                } else {
-                    my $val = maybe_attr( $item, $attribute );
-                    if( $want_node_body ) {
-                        $val = $item->toString;
-                    }
-                    push @res, { $name => _apply_mungers( $val => $mungers, $item, $options ) };
-
-                }
-            }
-        } else {
-            my $val = maybe_attr( $item, $attribute );
-            if( $want_node_body ) {
-                $val = $item->toString;
-                # Strip the tag itself
-                $val =~ s!^<[^>]+>!!;
-                $val =~ s!</[^>]+>\z!!ms;
-            }
-
-            if( $anonymous ) {
-                push @res, _apply_mungers( $val => $mungers, $item, $options );
-            } else {
-                if( ! $name ) {
-                    push @res, _apply_mungers( $val => $mungers, $item, $options );
-                } else {
-                    push @res, { $name => _apply_mungers( $val => $mungers, $item, $options )};
-                }
-            }
-        }
-    }
-
-    return @res
-}
 
 sub _fix_up_selector( $q ) {
     my $attribute;
@@ -274,169 +190,213 @@ sub _fix_up_selector( $q ) {
     return ($q, $attribute);
 }
 
-sub scrape_xml($node, $rules, $options={}, $context={} ) {
+sub scrape_xml_single_query(%options) {
+    # Always returns an arrayref of arrayrefs
+    my $options        = $options{ options };
+    my $debug          = $options{ debug };
+    my $node           = $options{ node };
+    my $name           = $options{ name };
+    my $query          = $options{ query };
+    my $attribute      = $options{ attribute };
+    my $context        = $options{ context };
+    my $force_index    = $options{ force_index };
+    my $force_single   = $options{ force_single };
+    my $want_node_body = $options{ want_node_body };
+    my $mungers        = $options{ mungers };
+
     my @res;
 
-    # Maybe have a first pass that creates a canonical data structure?!
-
-    local $context->{path} = [ @{ $context->{path} // [] }];
-
-    if( ref $rules eq 'HASH' ) {
-        my %_rules = %$rules;
-        my $anonymous;
-
-        my $force_index;
-        my $force_single;
-        my $want_node_body;
-        my @mungers;
-
-        if( exists $_rules{ index }) {
-            $force_index = delete $_rules{ index };
+    if( $debug) {
+        my $str = $node->toString;
+        $str =~ s!\s+! !msg; # compress the string slightly
+        if( length $str > 80 ) {
+            substr( $str, 77 ) = '...';
         }
+        say "$name [ $query ] $str"
+    }
 
-        if( exists $_rules{ anonymous }) {
-            $anonymous = delete $_rules{ anonymous };
-        }
+    # Make query relative to our context
+    if( $query =~ m!^//! ) {
+        $query = ".$query";
+    }
 
-        if( exists $_rules{ single }) {
-            $force_single = delete $_rules{ single };
-        }
+    my $items = $node->findnodes( $query );
 
-        if( exists $_rules{ html }) {
-            $want_node_body = delete $_rules{ html };
-        }
+    my @found = $items->get_nodelist;
+    if( $debug ) {
+        say sprintf "Found %d nodes for $query", scalar @found;
+    }
 
-        if( exists $_rules{ munge }) {
-            my $m = delete $_rules{ munge };
-
-            if( ! ref $m or ref $m ne 'ARRAY') {
-                $m = [$m];
-            }
-
-            @mungers = map {
-                my $m = $_;
-                my $munger;
-                if( ref $m ) { # code ref
-                    $munger = $m;
-                } elsif( $options->{mungers}->{ $m }) { # name
-                    $munger = $options->{mungers}->{ $m };
-                } else {
-                    croak "Got an unknown munger name '$m'";
-                }
-                $munger
-            } @$m;
-        }
-
-        my $debug = $options->{debug} || delete $_rules{ debug };
-
-        my $single_query;
-        #warn Dumper \%_rules;
-        if( exists $_rules{ query } ) {
-            $single_query = delete $_rules{ query };
-
-            if( ! ref $single_query) {
-                $single_query = [$single_query];
-            }
-        }
-
-        my @subitems;
-
-        if( exists $_rules{ name } ) {
-            @subitems = delete $_rules{ name };
-
-        #} elsif( scalar keys %_rules == 1 ) {
-        #    # Plain name, that means anonymous (?!)
-        #    ($name) = keys (%_rules);
-        #    $anonymous = 1;
-
-        } else {
-            # Multiple keys, or even a single key:
-            @subitems = (sort keys %_rules);
-            #$name = $rules;
-            # Anonymous results are handled one level below this (?!)
-        };
-
-        if( defined $single_query and @subitems > 1 ) {
-            croak "Can't have a query ($single_query) and multiple things (@subitems) at the same time";
-        }
-
-        # We have a weird double dispatch here.
-        if( ! defined $single_query ) {
-            # we have a list of @subitems that we want to collect:
-            #warn "List of items: @subitems";
-            my %res;
-            for my $name (@subitems) {
-                my $r = $_rules{ $name };
-                #warn "Fetching $name (" . ref($r) . ")";
-
-                # We always expect a scalar here?!
-                $res{ $name } = scrape_xml($node, $r, $options, $context );
-            };
-            return \%res
-
-        } else {
-            # we have a name and a query (where do we have the name from?!)
-            croak "Nothing to do at " . join " -> ", $context->{path}->@*
-                if @subitems > 1;
-            my $name = $subitems[0];
-
-            push $context->{path}->@*, $name;
-
-            for my $q (@$single_query) {
-
-                # Fix up the query
-                my( $query, $attribute ) = _fix_up_selector($q);
-
-                push @res, scrape_xml_single_query(
-                    context        => $context,
-                    options        => $options,
-                    debug          => $debug,
-                    node           => $node,
-                    name           => $name,
-                    anonymous      => $anonymous,
-                    subitems       => \@subitems,
-                    query          => $query,
-                    attribute      => $attribute,
-                    rules          => \%_rules,
-                    mungers        => \@mungers,
-                    force_index    => $force_index,
-                    force_single   => $force_single,
-                    want_node_body => $want_node_body,
-                );
-            }
-        }
-
-        if( $debug) {
-            warn "Found " . Dumper \@res;
-        }
-
-        if( $force_single ) {
-
-            if( @res > 1 and not wantarray ) {
-                warn ref $rules;
-                use Data::Dumper;
-                warn Dumper \@res;
-                die "Called in scalar context for "  . join " -> ", $context->{path}->@*;
-            }
-            return $res[0]
-
-        } else {
-            return \@res
-        }
-
-
-    } elsif( ref $rules eq 'ARRAY' ) {
-        return scrape_xml_list( $node, $rules, $options, $context );
-
-    } else {
-        my $items = $node->findnodes( ".//$rules");
-        my $name = $rules;
-        for my $item ($items->get_nodelist) {
-            push @res, { $name => $item->textContent };
+    if( defined $force_index) {
+        @found = $found[ $force_index-1 ];
+    } elsif( $force_single ) {
+        if( @found > 1 ) {
+            # XXX want a context_as_string() sub
+            say "** $_" for @found;
+            croak "More than one element found for " . join " -> ", $context->{path}->@*;
         }
     }
 
-    return wantarray ? @res : $res[0]
+    for my $item (@found) {
+        next unless $item;
+        my $val = maybe_attr( $item, $attribute );
+        if( $want_node_body ) {
+            $val = $item->toString;
+            # Strip the tag itself
+            $val =~ s!^<[^>]+>!!;
+            $val =~ s!</[^>]+>\z!!ms;
+        }
+
+        push @res,
+            [ $item, scalar _apply_mungers( $val => $mungers, $item, $options ) ];
+    }
+
+    return \@res
+}
+
+sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
+    # if single==1 , return a hashref, otherwise an arrayref
+    # can/do we want to return a plain string? type="list,object,string" ?
+    my @res;
+
+    # Can we maybe do this check before we walk the tree/start scraping?!
+    our @keywords = (qw(single fields html index query name munge debug discard));
+    my %_rule = %{ $rule };
+    delete @_rule{ @keywords };
+    croak "Unknown keyword(s) " . join ",", keys %_rule
+        if scalar %_rule;
+
+    my $name = $rule->{name};
+
+    my $force_index;
+    my $force_single;
+    my $want_node_body;
+    my @mungers;
+    my $query = $rule->{ query };
+    $query = [$query] if ! ref $query;
+
+    $force_index = $rule->{ index };
+    $force_single = $rule->{ single };
+    $want_node_body = delete $rule->{ html };
+
+    if( exists $rule->{ munge }) {
+        my $m = $rule->{ munge };
+
+        if( ! ref $m or ref $m ne 'ARRAY') {
+            $m = [$m];
+        }
+
+        @mungers = map {
+            my $m = $_;
+            my $munger;
+            if( ref $m ) { # code ref
+                $munger = $m;
+            } elsif( $options->{mungers}->{ $m }) { # name
+                $munger = $options->{mungers}->{ $m };
+            } else {
+                croak "Got an unknown munger name '$m'";
+            }
+            $munger
+        } @$m;
+    }
+
+    my $debug = $options->{debug} || $rule->{ debug };
+
+    push $context->{path}->@*, $name;
+
+    for my $q (@$query) {
+
+        # Fix up the query
+        my( $query, $attribute ) = _fix_up_selector($q);
+
+        my @found = scrape_xml_single_query(
+            context        => $context,
+            options        => $options,
+            debug          => $debug,
+            node           => $node,
+            name           => $name,
+            query          => $query,
+            attribute      => $attribute,
+            rules          => $rule,
+            mungers        => \@mungers,
+            force_index    => $force_index,
+            force_single   => $force_single,
+            want_node_body => $want_node_body,
+        );
+
+        # Is this unwrapping across results OK here?!
+        for my $i (map { @$_ } @found ) {
+            my ($node, $val ) = @$i;
+            if( my $child_rules = $rule->{fields}) {
+                # collect the fields for each element too
+                my $info = merge_xml_rules( $node, $child_rules, $options, $context );
+                push @res, $info;
+
+            } else {
+                # Use the values instead of the nodes
+                push @res, $val;
+            }
+        }
+
+    }
+
+    if( $force_single ) {
+        croak "Multiple things found for $rule->{query}"
+            unless @res == 1;
+        return $res[0]
+
+    } else {
+        return \@res
+    }
+}
+
+sub merge_xml_rules( $node, $rules, $options, $context ) {
+    my %info;
+    for my $r (@$rules) {
+        if( exists $info{ $r->{name} }) {
+            croak sprintf "Duplicate item for '%s' (%s)", $r->{name}, $node->nodePath;
+        };
+
+        my $child_value = scrape_xml_query( $node, $r, $options, $context );
+        if( $r->{discard} ) {
+            # unwrap this intermediate result
+            my $val;
+            if( ref $child_value eq 'ARRAY' ) {
+
+                if( @$child_value > 1 ) {
+                    use Data::Dumper; warn Dumper $child_value;
+                    die "More than one result for $r->{name}";
+                    exit;
+                };
+
+                $val = $child_value->[0];
+            } else {
+                $val = $child_value;
+            }
+
+            for (keys %$val) {
+                if( exists $info{ $_ }) {
+                    croak sprintf "Duplicate item for '%s' (%s)", $_, $node->nodePath;
+                };
+                $info{ $_ } = $val->{ $_ };
+            }
+
+        } else {
+
+            $info{ $r->{name} } = $child_value;
+        };
+    }
+    return \%info
+}
+
+
+sub scrape_xml($node, $rules, $options={}, $context={} ) {
+    ref $rules eq 'ARRAY'
+        or croak "Got $rules, expected ARRAY";
+
+    local $context->{path} = [ @{ $context->{path} // [] }];
+    my $res = merge_xml_rules( $node, $rules, $options, $context );
+    return $res;
 }
 
 sub scrape($html, $rules, $options = {} ) {

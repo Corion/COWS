@@ -1,9 +1,10 @@
 ---
 base: "https://www.ecb.europa.eu/paym/intro/news/html/index.en.html"
-items: &items
+items:
+  - &items
     query: "dt"
-    anonymous: 1
-    columns:
+    name: items
+    fields:
         - name: modified
           query: "./@isodate"
           index: 1
@@ -34,13 +35,13 @@ items: &items
           single: 1
 
 rss:
-    title:
+  - title:
       - name: title
         single: 1
         query:
           - /head/meta[@og:title]
           - /html/head/title
-    entries: *items
+  - *items
 
 columns:
     - modified

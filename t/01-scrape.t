@@ -22,22 +22,23 @@ my $html = <<'HTML';
 </html>
 HTML
 
-my @res = scrape( $html, {
-    items => {
+my @res = scrape( $html, [
+    {
         query => 'div.row',
-        anonymous => 1,
+        name => 'items',
         #anonymous => 1, # this applies to 'columns' (?!)
-        columns => [
+        fields => [
             { name => 'price', query => 'div.price', single => 1, munge => sub { $_[0] =~ s/.*?(\d+)[.,](\d\d?)\b.*/$1.$2/r } },
             { name => 'merchant', query => 'a@data-merchant', single => 1 },
-            { name => 'url', query => 'a@href', absolute => 1, single => 1 },
+            { name => 'url', query => 'a@href', single => 1 },
         ],
     },
-    title => {
+    {
+        name => 'title',
         query => '/html/head/title',
         single => 1,
     },
-}, { base => 'https://example.com/' } );
+], { base => 'https://example.com/', debug => 1, mungers => { absolute => sub {}, } } );
 
 is $res[0], {
     title => 'Test title',
