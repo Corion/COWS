@@ -52,7 +52,10 @@ sub node_vis( $node ) {
     # Add text up to the first non-text child node
     my @ch = $node->childNodes;
     while( @ch and $ch[0]->nodeType == XML_TEXT_NODE ) {
-        $vis .= $ch[0]->nodeValue;
+        my $val = $ch[0]->nodeValue;
+        if( $val =~ /\S/ ) {
+            $vis .= $val;
+        }
         shift @ch;
     }
     $vis =~ s!\s+! !msg;
@@ -71,7 +74,8 @@ sub node_vis( $node ) {
         return sprintf '"%s"', $vis;
     } else {
         if( length $vis > 10 ) { $vis = substr( $vis, 0, 7 ) . "..." };
-        if( $vis ) {
+        # Maybe have an option to show whitespace?!
+        if( $vis =~ /\S/ ) {
             return sprintf "<%s> (%s)", $name, $vis;
         } else {
             return sprintf "<%s>", $name;
@@ -213,6 +217,8 @@ sub collapsed_node( $node, $options={} ) {
     return $res
 }
 
+# We should dynamically adjust the tree depth according to the terminal width
+# Maybe we want *bold* for the current line, if the terminal permits?!
 sub tree($node, $options={}) {
     $options->{max_depth} //= 1;
     $options->{max_width} //= 2;
