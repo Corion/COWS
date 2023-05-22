@@ -406,3 +406,56 @@ sub scrape($html, $rules, $options = {} ) {
 }
 
 1;
+
+=head1 QUERY SYNTAX
+
+For each query, a hashref with the following keys is accepted
+
+=over 4
+
+=item C<name>
+
+The name of this query. This will be used as a key in the resulting
+hashref.
+
+=item C<query>
+
+The CSS selector or XPath query to search for.
+
+=item C<fields>
+
+Queries that should be matched below this node.
+
+=item C<debug>
+
+Output progress while stepping through this query. This is convenient
+for finding why a specific query doesn't result in what you think it
+should.
+
+=item C<single>
+
+Expect only a single item, result will be the value of the query. If
+the query has a C<fields> field, it will be a hashref of the fields.
+
+If this key is missing, the result will always be an arrayref.
+
+=item C<index>
+
+Use the n-th node as result. The result will always be a hashref
+or scalar value. This could be done in XPath but sometimes it's easier
+to do it here.
+
+=item C<discard>
+
+Do not use this intermediate value but replace it by the arrayref of
+its C<fields> value.
+
+=item C<html>
+
+Include the value of this node as an HTML string.
+
+=item C<munge>
+
+Apply the functions in the listed order to the value.
+
+=back
