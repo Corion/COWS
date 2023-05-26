@@ -176,6 +176,62 @@ sub parse( $self, $rules, $id_or_html, $options ) {
         });
 }
 
+=head2 C<< ->scrape( %options ) >>
+
+  my $res = $ua->scrape(
+      config => {
+          posts => [
+          { name => 'author', query => 'p.author' },
+          { name => 'content', query => 'p.message', html => 1 },
+          ],
+          navigation => [
+              { name => 'next_page', query => '//link[@rel="next"]' }
+          ],
+      },
+      cache => \%cache,
+      start_rule => 'posts',
+      info => {
+          url => 'https://example.com',
+      },
+      url => 'https://example.com',
+  );
+
+Returns a hashref of the scraped data
+
+Options are
+
+=over 4
+
+=item C<config>
+
+The scraping and navigation rules
+
+=item C<url>
+
+The URL to scrape. The UserAgent will follow redirects and if the C<config>
+has a C<navigation> key, it will also use the navigation to go to the latest
+page.
+
+=item C<cache>
+
+An optional hashref used as cache for URLs
+
+This is convenient when re-running a scraper with different rules over
+the same pages.
+
+=item C<start_rule>
+
+The start rule in the config to start scraping with.
+
+=item C<info>
+
+A hashref that is passed to the C<munge> callbacks. This is convenient
+for finding the absolute URL for example.
+
+=back
+
+=cut
+
 sub scrape( $self, %options ) {
     my $config = delete $options{ config };
     my $cache = delete $options{ cache } // {};
