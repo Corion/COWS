@@ -10,6 +10,8 @@ use XML::LibXML;
 use HTML::Selector::XPath 'selector_to_xpath';
 use List::Util 'reduce';
 
+use COWS::Mungers;
+
 our @EXPORT_OK = ('scrape', 'scrape_xml');
 
 =head1 NAME
@@ -59,7 +61,7 @@ Something like
             name => '???', # ignored
             single => 1,
             query => './p', # ...
-            fields => [ # "children" ?!
+            fields => [
                 {
                     name    => 'content'
                     query   => './text()',
@@ -89,13 +91,13 @@ results in
     my $rules = [
         { query => 'a@href',
           name  => 'links',
-          munge => ['absolute'],
+          munge => ['url'],
         },
     ];
 
     my %mungers = (
         # callbacks
-        absolute => sub( $text, $node, $info ) {
+        url => sub( $text, $node, $info ) {
             use URI;
             return URI->new_abs( $text, $info->{url} );
         },
@@ -202,7 +204,7 @@ sub scrape_xml_single_query(%options) {
     my $force_index    = $options{ force_index };
     my $force_single   = $options{ force_single };
     my $want_node_body = $options{ want_node_body };
-    my $mungers        = $options{ mungers };
+    my $mungers        = $options{ mungers } // \%COWS::Mungers::mungers;
 
     my @res;
 
