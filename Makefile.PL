@@ -50,6 +50,7 @@ my %module = (
     },
 
     PREREQ_PM => {
+        'Filter::signatures'      => 0, # actually, the (unlisted) Date::Extract needs it
         'Exporter'                => 5, # for 'import'
         'XML::LibXML'             => 0,
         'Mojolicious'             => 0, # for the HTTP transport
