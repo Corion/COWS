@@ -28,7 +28,7 @@ my $flat = [
                 {
                     name => 'url',
                     query => './@href',
-                    tag => ['action:follow'],
+                    tag => 'action:follow',
                     munge => 'url',
                     single => 1,
                 },
@@ -45,7 +45,7 @@ my $flat = [
             {
                 name => 'download',
                 query => 'a@href',
-                tag => 'action:download',
+                tag => ['action:download','output:console'],
                 munge => 'url',
                 single => 1,
             },
@@ -67,9 +67,9 @@ is $res, {
         { url => 'https://example.com/1.html', direction => 'previous', action => 'follow' },
     ],
     releases => [
-        { download => 'https://example.com/release-3.zip', description => 'Release number 3', action => 'download' },
-        { download => 'https://example.com/release-2.zip', description => 'Release number 2', action => 'download' },
-        { download => 'https://example.com/release-1.zip', description => 'Release number 1', action => 'download' },
+        { download => 'https://example.com/release-3.zip', description => 'Release number 3', action => 'download', output => 'console' },
+        { download => 'https://example.com/release-2.zip', description => 'Release number 2', action => 'download', output => 'console' },
+        { download => 'https://example.com/release-1.zip', description => 'Release number 1', action => 'download', output => 'console' },
     ],
 }, "We found the relevant entries", $res;
 
