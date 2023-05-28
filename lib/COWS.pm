@@ -192,7 +192,7 @@ sub scrape_xml_single_query(%options) {
     my $options        = $options{ options };
     my $debug          = $options{ debug };
     my $node           = $options{ node };
-    my $name           = $options{ name };
+    my $name           = $options{ name }; # only needed for debugging/interactive
     my $query          = $options{ query };
     my $attribute      = $options{ attribute };
     my $context        = $options{ context };
