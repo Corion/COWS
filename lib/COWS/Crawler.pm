@@ -55,6 +55,8 @@ has 'ioloop' => (
     default => sub { Mojo::IOLoop->singleton },
 );
 
+# XXX how can we (also) allow for using WWW::Mechanize::Chrome here
+#     instead of Mojo::UserAgent?!
 has 'ua' => (
     is => 'lazy',
     default => sub { Mojo::UserAgent->new },
