@@ -156,15 +156,10 @@ sub maybe_attr( $item, $attribute ) {
 }
 
 sub _apply_mungers( $val, $mungers, $node, $options ) {
-    #use Data::Dumper; warn Dumper @$mungers;
-    if( $mungers ) {
-        my @l = ($val, @$mungers);
-        return reduce { $b ? $b->($a, $node, $options) : $a } @l;
-    } else {
-        return $val
-    }
+    $mungers //= [];
+    my @l = ($val, @$mungers);
+    return reduce { $b ? $b->($a, $node, $options) : $a } @l;
 }
-
 
 sub _fix_up_selector( $q ) {
     my $attribute;
