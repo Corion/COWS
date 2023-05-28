@@ -244,8 +244,9 @@ sub scrape_xml_single_query(%options) {
             $val =~ s!</[^>]+>\z!!ms;
         }
 
+        my $scraped = scalar _apply_mungers( $val => $mungers, $item, $options );
         push @res,
-            [ $item, scalar _apply_mungers( $val => $mungers, $item, $options ) ];
+            [ $item, $scraped ];
     }
 
     return \@res
