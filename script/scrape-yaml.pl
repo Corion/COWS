@@ -54,39 +54,8 @@ sub load_config( $config_file ) {
     return $config;
 }
 
-sub extract_price( $text, $node, $info ) {
-    $text =~ s/.*?(\d+)[.,](\d\d).*/$1.$2/r
-}
-
-sub compress_whitespace( $text, $node, $info ) {
-    $text =~ s!\s+! !msg;
-    $text =~ s!^\s+!!;
-    $text =~ s!\s+$!!;
-    return $text
-}
-
-sub url( $text, $node, $info ) {
-    use Data::Dumper;
-    die "No URL in " . Dumper $info
-        unless exists $info->{url};
-    $text = "" . URI->new_abs( $text, $info->{url} );
-}
-
-sub extract_date( $text, $node, $info ) {
-    my $dt = guess_ymd($text);
-    return sprintf '%d-%02d-%02d', $dt->{year}, $dt->{month}, $dt->{day};
-}
-
-my %handlers = (
-    extract_price       => \&extract_price,
-    compress_whitespace => \&compress_whitespace,
-    url                 => \&url,
-    date                => \&extract_date,
-);
-
 sub create_scraper( $config ) {
     my $scraper = COWS::UserAgent->new(
-        mungers => \%handlers,
         base    => $config->{base},
         debug => $debug,
     );
