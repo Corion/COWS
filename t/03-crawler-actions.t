@@ -28,7 +28,7 @@ my $flat = [
                 {
                     name => 'url',
                     query => './@href',
-                    tag => 'action:follow',
+                    tag => 'action:follow("url")',
                     munge => 'url',
                     single => 1,
                 },
@@ -43,9 +43,9 @@ my $flat = [
       query => '//p[a]',
       fields => [
             {
-                name => 'download',
+                name => 'link',
                 query => 'a@href',
-                tag => ['action:download','output:console'],
+                tag => ['action:download("link")','output:console'],
                 munge => 'url',
                 single => 1,
             },
@@ -63,13 +63,13 @@ my $res = scrape( $html, $flat, { url => 'https://example.com/' } );
 
 is $res, {
     links => [
-        { url => 'https://example.com/3.html', direction => 'next', action => 'follow' },
-        { url => 'https://example.com/1.html', direction => 'previous', action => 'follow' },
+        { url => 'https://example.com/3.html', direction => 'next', action => 'follow("url")' },
+        { url => 'https://example.com/1.html', direction => 'previous', action => 'follow("url")' },
     ],
     releases => [
-        { download => 'https://example.com/release-3.zip', description => 'Release number 3', action => 'download', output => 'console' },
-        { download => 'https://example.com/release-2.zip', description => 'Release number 2', action => 'download', output => 'console' },
-        { download => 'https://example.com/release-1.zip', description => 'Release number 1', action => 'download', output => 'console' },
+        { link => 'https://example.com/release-3.zip', description => 'Release number 3', action => 'download("link")', output => 'console' },
+        { link => 'https://example.com/release-2.zip', description => 'Release number 2', action => 'download("link")', output => 'console' },
+        { link => 'https://example.com/release-1.zip', description => 'Release number 1', action => 'download("link")', output => 'console' },
     ],
 }, "We found the relevant entries", $res;
 
