@@ -341,8 +341,8 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
     }
 
     if( $force_single ) {
-        croak "Multiple things found for $rule->{query}"
-            unless @res == 1;
+        croak "Multiple things found for @$query"
+            unless @res <= 1;
         return $res[0]
 
     } else {
