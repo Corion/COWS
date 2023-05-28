@@ -373,6 +373,7 @@ sub merge_xml_rules( $node, $rules, $options, $context ) {
             }
 
             for (keys %$val) {
+                # Can/should we merge identical key+value ?
                 if( exists $info{ $_ }) {
                     croak sprintf "Duplicate item for '%s' (%s)", $_, $node->nodePath;
                 };
@@ -422,7 +423,18 @@ The CSS selector or XPath query to search for.
 
 =item C<fields>
 
-Queries that should be matched below this node.
+Queries that should be matched below this node. The results will
+get merged into a hashref. Duplicate names are not allowed (duh).
+
+  fields => [
+      { name => 'foo', ... },
+      { name => 'bar', ... },
+      { name => 'baz', ... },
+  ]
+
+results in
+
+  { foo => ..., bar => ..., baz => ... }
 
 =item C<debug>
 
