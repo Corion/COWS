@@ -111,37 +111,24 @@ results in
 =cut
 
 =for thinking
+We want to think about tags/actions for items that simply are keys/values that
+get added to the returned items. These are then used by the crawler to find
+the new URLs resp. to trigger downloads.
 
-  div:       # unknown key/key which looks like a query, means query
-    anonymous: 1 # instead of creating { div => items => [] } create { items => [] }
-    items:   # how do we specify that these all get merged?! Maybe all arrays get merged?!
-      - name: price
-        query: div.gh_price
-        index: 1
-        force_single: 1
-        munge: extract_price
-      - name: merchant
-        query: a@data-merchant-name
-        index: 1
-        force_single: 1
-      - name: url
-        query: a@href
-        index: 1
-        force_single: 1
-        munge: absolute
-  more_items:
-    - name: other_price
-      query: div.gh_price_2
-      index: 1
-      force_single: 1
-  title: /head/title # second query?!
+=for thinking
+Maybe have a munger "foo:bar" for calling actions?! This would be
+extensible, or even foo(bar) or foo('bar') - YAML will parse lists for
+us already, so we merely need parentheses+strings
 
-  # This would return
-  {
-    items => [ {}, {}, ... ],
-    title => '...',
-    more_items: [ ... ]
-  }
+=for thinking
+
+  mungers: - action('download')
+  mungers: - action:download
+  mungers: - download # but this happens at the wrong time and is not associated with the rest!
+  tag: - 'download'
+
+=for thinking
+Maybe we want "allowed keywords" too, to customize the COWS struct parser
 
 =cut
 
@@ -258,14 +245,17 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
     my @res;
 
     # Can we maybe do this check before we walk the tree/start scraping?!
-    our @keywords = (qw(single fields html index query name munge debug discard));
+    our @keywords = (qw(single fields html index query name munge debug discard tag));
     my %_rule = %{ $rule };
     delete @_rule{ @keywords };
-    croak "Unknown keyword(s) " . join ",", keys %_rule
+    croak "Unknown keyword(s) in rule '$rule->{name}': " . join ",", keys %_rule
         if scalar %_rule;
+    if( exists $rule->{name} ) {
+        exists $rule->{query}
+            or croak "Need an XPath query for rule '$rule->{name}'";
+    }
 
     my $name = $rule->{name};
-
     my $force_index;
     my $force_single;
     my $want_node_body;
@@ -328,12 +318,14 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
             if( my $child_rules = $rule->{fields}) {
                 # collect the fields for each element too
                 my $info = merge_xml_rules( $node, $child_rules, $options, $context );
+
                 push @res, $info;
 
             } else {
                 # Use the values instead of the nodes
                 push @res, $val;
             }
+
         }
 
     }
@@ -384,6 +376,17 @@ sub merge_xml_rules( $node, $rules, $options, $context ) {
 
             $info{ $r->{name} } = $child_value;
         };
+
+        if( my $tags = $r->{tag} ) {
+            $tags = [$tags] unless ref $tags;
+            for my $t ( $tags->@* ) {
+                my ($k,$v) = split /:/, $t;
+
+                # What about multiple tags?
+                # Would these be categories then?!
+                $info{$k} //= $v;
+            }
+        }
     }
     return \%info
 }
