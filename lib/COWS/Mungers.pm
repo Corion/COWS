@@ -5,6 +5,7 @@ no warnings 'experimental::signatures';
 
 use Exporter 'import';
 use URI;
+use lib '../App-moveyear/lib';
 use Date::Extract 'guess_ymd';
 
 our @EXPORT_OK = qw(%mungers);
@@ -30,7 +31,7 @@ sub extract_date( $text, $node, $info ) {
     return sprintf '%d-%02d-%02d', $dt->{year}, $dt->{month}, $dt->{day};
 }
 
-my %mungers = (
+our %mungers = (
     extract_price       => \&extract_price,
     compress_whitespace => \&compress_whitespace,
     url                 => \&url,
