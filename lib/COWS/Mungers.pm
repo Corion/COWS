@@ -21,6 +21,7 @@ sub extract_price( $text, $node, $info ) {
 
 sub compress_whitespace( $text, $node, $info ) {
     $text =~ s!\s+! !msg;
+    $text =~ s!\x{200e}! !msg;
     $text =~ s!^\s+!!;
     $text =~ s!\s+$!!;
     return $text
