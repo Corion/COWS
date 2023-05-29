@@ -67,35 +67,101 @@ $crawler->on('finish' => sub($c, $r, $res) {
     output_scoreboard();
 });
 
+my $top = shift @ARGV;
+if( ! @ARGV ) {
+    push @ARGV, $top;
+}
+
 # We want three kinds of actions
 # * follow(url) - enqueue+scrape the next page
 # * download(url,filename) - download the URL to a file (filename is optional?)
 # * include(url) - (also) scrape the next page and include it here
 
-sub execute_actions( $i ) {
+sub handle_follow( $page, $url ) {
+    # Should we warn about bad URLs?
+    next unless $url =~ /^http/i;
+
+    # Should we log that we skip an URL?
+    next unless $url =~ /^\Q$top\E/i;
+
+    my $u = $url;
+    my $info = {
+        url => $u,
+        from => $page->{info}->{url},
+    };
+    $crawler->submit_request({info => $info, GET => "$url"});
+}
+
+sub handle_download( $page, $url, $filename=undef ) {
+    # launch a download
+    my $info = {
+        url => $url,
+        from => $page->{info}->{url},
+    };
+    my $filename;
+    if( $url =~ m!\b([^/?=]+\.jpe?g)\b! ) {
+        $filename = $1;
+    } else {
+        die "Couldn't guess filename from '$url'";
+    }
+    next if -e $filename;
+    # resume downloads?
+
+    $crawler->submit_download({info => $info, GET => "$url",
+    #headers => {
+    #    Referer => $page->{info}->{url},
+    #    cookies?
+    #}
+    } => $filename);
+}
+
+my %actions = (
+    follow   => \&handle_follow,
+    download => \&handle_download,
+);
+
+sub execute_actions( $page, $i ) {
     if( ! ref $i ) {
+        # ignore
+
     } elsif( ref $i eq 'HASH' ) {
         if( exists $i->{action}) {
-            if( $i->{action} !~ /^(\w+)\s*\((.*)\)$/ ) {
-                die "Malformed action: '$i->{action}'";
-            };
-            my ($name, $args) = ($1,$2);
-            my @args = ($args =~ /"((?:[^\"]|\\.)+)"/g);
 
-            say "Action: $name $args[0] $i->{$args[0]}";
+            my $actions;
+            if( ! ref $i->{action}) {
+                $actions = [$i->{action}]
+            } else {
+                $actions = $i->{action};
+            };
+
+            for my $action ( @$actions ) {
+                if( $action !~ /^(\w+)\s*\((.*)\)$/ ) {
+                    die "Malformed action: '$action'";
+                };
+                my ($name, $args) = ($1,$2);
+                my @args = ($args =~ /"((?:[^\"]|\\.)+)"/g);
+
+                if( ! exists $actions{ $name }) {
+                    die "Unknown action '$name'";
+                }
+
+                for my $val ($i->{$args[0]}->@*) {
+                    $actions{ $name }->( $page, $val );
+                };
+
+                #say "Action: $name $args[0] $i->{$args[0]}";
+            }
         };
         for my $k (grep { $_ ne 'action' } keys %$i) {
-            execute_actions( $i->{ $k } );
+            execute_actions( $page, $i->{ $k } );
         }
+
     } elsif( ref $i eq 'ARRAY' ) {
-        execute_actions( $_ ) for @$i;
+        execute_actions( $page, $_ ) for @$i;
+
     }
 }
 
-my $top = shift @ARGV;
-if( ! @ARGV ) {
-    push @ARGV, $top;
-}
 for my $url (@ARGV) {
     $crawler->submit_request({ GET => $url, info => { url => $url }} ) ;
 }
@@ -120,59 +186,19 @@ while( my ($page) = $crawler->next_page ) {
     }
 
     if( $status !~ /[23]\d\d/ ) {
-        say "$status $url";
+        #say "$status $url";
     }
 
     # Skip non-HTML content...
 
-    my $links = scrape( $body, [ { name => 'next', query => '//a[img[@id="picture"]]/@href', munge => ['absolute'], },
-                                 { name => 'image', query => '//img[@id="picture"]/@src', munge => ['absolute'],},
-                                ], {
+    my $links = scrape( $body,
+    [
+        { name => 'next', query => '//a[img[@id="picture"]]/@href', munge => ['url'], tag => 'action:follow("next")'},
+        { name => 'image', query => '//img[@id="picture"]/@src', munge => ['url'], tag => 'action:download("image")'},
+    ], {
         url => "" . $page->{req}->req->url,
     });
-
-    for my $url ($links->{image}->@*) {
-
-        # launch a download
-        my $info = {
-            url => $url,
-            from => $page->{info}->{url},
-        };
-        my $filename;
-        if( $url =~ m!\b([^/?=]+\.jpe?g)\b! ) {
-            $filename = $1;
-        } else {
-            die "Couldn't guess filename from '$url'";
-        }
-        next if -e $filename;
-        # resume?
-
-        #say "Download $url -> $filename";
-
-        $crawler->submit_download({info => $info, GET => "$url",
-        #headers => {
-        #    Referer => $page->{info}->{url},
-        #}
-        } => $filename);
-    }
-    for my $url ($links->{next}->@*) {
-        #my $u = URI->new( $url );
-
-        next unless $url =~ /^http/i;
-        next unless $url =~ /^\Q$top\E/i;
-
-        #if( $url =~ /\.mpe?g/ ) {
-        #    # do a HEAD instead?!
-        #    next;
-        #}
-
-        my $u = $url;
-        my $info = {
-            url => $u,
-            from => $page->{info}->{url},
-        };
-        $crawler->submit_request({info => $info, GET => "$url"});
-    }
+    execute_actions( $page, $links );
 
     #$crawler->submit_request($request);
     # Extract all the information we want
