@@ -204,7 +204,13 @@ sub scrape_xml_single_query(%options) {
         $query = ".$query";
     }
 
-    my $items = $node->findnodes( $query );
+    my $items;
+    if( $query =~ /^\./ ) {
+        $items = $node->findnodes( $query );
+    } else {
+
+        $items = $node->ownerDocument->documentElement->findnodes( $query );
+    }
 
     my @found = $items->get_nodelist;
     if( $debug ) {
