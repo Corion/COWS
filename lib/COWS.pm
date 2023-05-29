@@ -343,6 +343,10 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
         }
     }
 
+    if( $force_index ) {
+        @res = $res[$force_index -1];
+    }
+
     if( $force_single ) {
         croak "Multiple things found for @$query"
             unless @res <= 1;
