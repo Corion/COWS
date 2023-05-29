@@ -327,16 +327,13 @@ sub output( $str, $filename ) {
     if( defined $filename ) {
         update_file( $filename => $str );
     } else {
+        binmode STDOUT, ':utf-8';
         say $str
     }
 }
 
 sub output_data( $config, $output_type, $rows ) {
     if( $output_type eq 'table' ) {
-        use Data::Dumper;
-        warn $scrape_item;
-        warn Dumper $rows;
-
         # Flatten the results
         @$rows = map { @{ $_->{$scrape_item }} } @$rows;
 
