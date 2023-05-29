@@ -1,7 +1,7 @@
 ---
 talk:
     - name: talk
-      query: '//tbody/tr'
+      query: '//tbody/tr[td/a[contains(@href,"/user/")]]'
       fields:
       - name:   time
         single: 1
@@ -13,7 +13,7 @@ talk:
         munge:  date
       - name:   speaker
         single: 1
-        query:  './td[2]//a[1]'
+        query:  './td[2]//a[1][contains(@href,"/user/")]'
         munge:  compress_whitespace
       - name:   speaker_link
         single: 1
@@ -35,6 +35,7 @@ talk:
       query: '//a[contains(@href,"?day=") and not(contains(@href,"language="))]/@href'
       tag:   'action:follow("link")'
       munge: url
+      #debug: 1
 
 columns:
     - date
