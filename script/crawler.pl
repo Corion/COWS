@@ -262,9 +262,17 @@ sub scrape_pages($config, @items) {
 
         # Do we always want to decode/upgrade this?!
         my $ct = $page->{res}->headers->content_type;
+        # Also consider looking at <meta charset="...">
+        # and
+        # <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        # We could do XPath queries for that ...
+        my $enc;
         if($ct =~ s/;\s*charset=(.*)$//) {
-            my $enc = $1;
-            $body = decode( $enc, $body );
+            $enc = $1;
+        #    $body = decode( $enc, $body );
+        } else {
+            # guess, badly
+            $enc = 'ISO-8859-1';
         }
 
         my $url = $page->{req}->req->url;
@@ -285,7 +293,7 @@ sub scrape_pages($config, @items) {
 
             my $info = scrape( $body,
                 $config->{$scrape_item},
-                { url => "$url" },
+                { url => "$url", encoding => $enc },
             );
             execute_actions( $crawler, $page, $info );
 

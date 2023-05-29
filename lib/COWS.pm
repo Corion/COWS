@@ -1,6 +1,7 @@
 package COWS 0.01;
 
 use 5.020;
+use utf8;
 use Carp 'croak';
 use feature 'signatures';
 no warnings 'experimental::signatures';
@@ -432,8 +433,11 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
 }
 
 sub scrape($html, $rules, $options = {} ) {
+    my $encoding = $options->{encoding} // 'UTF-8'; # best guess
     $html =~ s!\A\s+!!sm;
-    my $dom = XML::LibXML->load_html( string => $html, recover => 2 );
+    #my $dom = XML::LibXML->load_html( string => $html, recover => 2 );
+    my $parser = XML::LibXML->new();
+    my $dom = $parser->parse_html_string( $html, { recover => 2, encoding => $encoding });
     return scrape_xml( $dom->documentElement, $rules, $options )
 }
 
