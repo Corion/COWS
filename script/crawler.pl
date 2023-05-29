@@ -32,6 +32,8 @@ GetOptions(
     'not-above=s'     => \my $top,
 );
 
+binmode STDOUT, ':encoding(utf8)';
+
 $output_type //= 'table';
 
 my %default_start_rules = (
@@ -125,14 +127,14 @@ sub update_file( $filename, $new_content ) {
     if( -f $filename ) {
         open my $fh, '<', $filename
             or die "Couldn't read '$filename': $!";
-        binmode $fh;
+        binmode STDOUT, ':encoding(utf8)';
         local $/;
         $content = <$fh>;
     };
 
     if( $content ne $new_content ) {
         if( open my $fh, '>', $filename ) {
-            binmode $fh;
+            binmode STDOUT, ':encoding(utf8)';
             print $fh $new_content;
         } else {
             warn "Couldn't (re)write '$filename': $!";
@@ -316,7 +318,6 @@ sub output( $str, $filename ) {
     if( defined $filename ) {
         update_file( $filename => $str );
     } else {
-        binmode STDOUT, ':utf-8';
         say $str
     }
 }
