@@ -92,7 +92,15 @@ sub handle_follow( $crawler, $page, $url ) {
         url => $u,
         from => $page->{info}->{url},
     };
-    $crawler->submit_request({info => $info, GET => "$url"});
+
+    if(
+        $crawler->submit_request({info => $info, GET => "$url"})
+    ) {
+        #msg("Queueing $url");
+        #msg( sprintf "Queueing %s (%x, %x)", $r->{req}->req->url, $res, $r );
+    } else {
+        #msg("Skipping $url");
+    }
 }
 
 sub handle_download( $crawler, $page, $url, $filename=undef ) {
