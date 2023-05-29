@@ -128,7 +128,7 @@ sub start_request($self, $r) {
     } else {
         $req_p_start = $self->ua->start_p( $req )->then(sub($tx) {
             if( my $c = $self->cache ) {
-                say "Caching $id (" . ref( $tx->result ) . ")";
+                #say "Caching $id (" . ref( $tx->result ) . ")";
                 $c->{$id} = $tx->result;
             };
             return $tx->result;
