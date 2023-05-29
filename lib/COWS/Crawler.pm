@@ -221,3 +221,5 @@ sub submit_download( $self, $request, $filename ) {
 
 
 }
+
+1;
