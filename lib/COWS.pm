@@ -174,6 +174,15 @@ sub _fix_up_selector( $q ) {
     return ($q, $attribute);
 }
 
+sub node_vis($node) {
+    my $str = $node->toString;
+    $str =~ s!\s+! !msg; # compress the string slightly
+    if( length $str > 80 ) {
+        substr( $str, 77 ) = '...';
+    }
+    return $str
+}
+
 sub scrape_xml_single_query(%options) {
     # Always returns an arrayref of arrayrefs
     my $options        = $options{ options };
@@ -191,11 +200,7 @@ sub scrape_xml_single_query(%options) {
     my @res;
 
     if( $debug) {
-        my $str = $node->toString;
-        $str =~ s!\s+! !msg; # compress the string slightly
-        if( length $str > 80 ) {
-            substr( $str, 77 ) = '...';
-        }
+        my $str = node_vis($node);
         say "$name [ $query ] $str"
     }
 
@@ -215,6 +220,9 @@ sub scrape_xml_single_query(%options) {
     my @found = $items->get_nodelist;
     if( $debug ) {
         say sprintf "Found %d nodes for $query", scalar @found;
+        for( @found ) {
+            say node_vis($_);
+        };
     }
 
     if( defined $force_index) {
