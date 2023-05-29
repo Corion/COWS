@@ -327,7 +327,6 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
             }
 
         }
-
     }
 
     if( $force_single ) {
@@ -380,11 +379,23 @@ sub merge_xml_rules( $node, $rules, $options, $context ) {
         if( my $tags = $r->{tag} ) {
             $tags = [$tags] unless ref $tags;
             for my $t ( $tags->@* ) {
-                my ($k,$v) = split /:/, $t;
+                my ($k,$mode,$v) = ($t =~ /^([^=:]+)([=:])(.*)$/)
+                    or croak "Unknown tag format '$t'";
 
-                # What about multiple tags?
-                # Would these be categories then?!
-                $info{$k} //= $v;
+                # What about single/repeating tags?
+                # Would these be categories then?! Do we have a third word?
+
+                if( $mode eq ':' ) {
+                    $info{$k} //= [];
+                    if( ! grep { $_ eq $v } $info{$k}->@* ) {
+                        push $info{$k}->@*, $v;
+                    }
+                } elsif( $mode eq '=' ) {
+                    $info{$k} //= $v;
+
+                } else {
+                    croak "Unknown tag mode '$mode'";
+                }
             }
         }
     }

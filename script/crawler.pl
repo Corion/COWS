@@ -36,6 +36,30 @@ $crawler->on('finish' => sub($c, $r, $res) {
     $printer->output_list(map { $scoreboard{ $_ } } sort keys %scoreboard);
 });
 
+# We want three kinds of actions
+# * follow(url) - enqueue+scrape the next page
+# * download(url,filename) - download the URL to a file (filename is optional?)
+# * include(url) - (also) scrape the next page and include it here
+
+sub execute_actions( $i ) {
+    if( ! ref $i ) {
+    } elsif( ref $i eq 'HASH' ) {
+        if( exists $i->{action}) {
+            if( $i->{action} !~ /^(\w+)\s*\((.*)\)$/ ) {
+                die "Malformed action: '$i->{action}'";
+            };
+            my ($name, $args) = ($1,$2);
+            my @args = ($args =~ /"((?:[^\"]|\\.)+)"/g);
+
+            say "Action: $name $args[0] $i->{$args[0]}";
+        };
+        for my $k (grep { $_ ne 'action' } keys %$i) {
+            execute_actions( $i->{ $k } );
+        }
+    } elsif( ref $i eq 'ARRAY' ) {
+        execute_actions( $_ ) for @$i;
+    }
+}
 
 my $top = shift @ARGV;
 if( ! @ARGV ) {
