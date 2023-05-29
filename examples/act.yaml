@@ -1,0 +1,45 @@
+---
+talk:
+    - name: talk
+      query: '//tbody/tr'
+      fields:
+      - name:   time
+        single: 1
+        query:  './td[1]'
+        munge:  'compress_whitespace'
+      - name:   date
+        query:  '/html//h2[following-sibling::div][2]'
+        single: 1
+        munge:  date
+      - name:   speaker
+        single: 1
+        query:  './td[2]//a[1]'
+        munge:  compress_whitespace
+      - name:   speaker_link
+        single: 1
+        query:  './td[2]/a[1]/@href'
+        munge:  url
+      - name:   talkname
+        single: 1
+        query:
+        - './td[2]/a[2]/b'
+        - './td[2]/a[2]'
+        index: 1
+        munge: 'compress_whitespace'
+      - name:   talkname_link
+        single: 1
+        query: './td[2]/a[2]/@href'
+        munge: 'url'
+
+    - name:  link
+      query: '//a[contains(@href,"?day=") and not(contains(@href,"language="))]/@href'
+      tag:   'action:follow("link")'
+      munge: url
+
+columns:
+    - date
+    - time
+    - speaker
+    - speaker_link
+    - talkname
+    - talkname_link

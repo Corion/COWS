@@ -81,7 +81,7 @@ sub msg($msg) {
 
 sub load_config( $config_file ) {
     my $config = LoadFile( $config_file );
-    if( ! $config->{items} ) {
+    if( ! $config->{$scrape_item} ) {
         die "$config_file: No 'items' section found";
     }
     return $config;
@@ -257,7 +257,6 @@ sub scrape_pages($config, @items) {
 
         # If it is a page that results in navigation, enqueue the proper navigation
         # submit more navigation
-        #my @links = $page->scrape( [ { name => link, query => 'a@href', munge => ['absolute'], } ] );
         my $body = $page->{res}->body;
 
         # Do we always want to decode/upgrade this?!
@@ -281,35 +280,19 @@ sub scrape_pages($config, @items) {
         }
 
         # Skip non-HTML content...
+        if( fc $ct eq fc 'text/html' ) {
 
-        my $info = scrape( $body,
-        [
-        { name => 'talk',
-        query => '//tbody/tr',
-        fields => [
-            #{ name => 'next', query => '//a[img[@id="picture"]]/@href', munge => ['url'], tag => 'action:follow("next")'},
-            { name => 'time', single => 1, query => './td[1]' },
-            { name => 'date', query => '/html//h2[following-sibling::div][2]', single => 1, munge => 'date'},
-            { name => 'speaker', single =>1, query => './td[2]//a[1]' },
-            { name => 'speaker_link', single => 1, query => './td[2]/a[1]/@href', munge => 'url' },
-            { name => 'talkname', single => 1, query => './td[2]/a[2]/b' },
-            { name => 'talkname_link', single => 1, query => './td[2]/a[2]/@href', munge => 'url' },
-        ],
-        },
-        { name => 'link',
-        query => '//a[contains(@href,"?day=") and not(contains(@href,"language="))]/@href',
-        tag => 'action:follow("link")',
-        munge => 'url',
-        },
-        ], {
-            url => "" . $page->{req}->req->url,
-        });
-        execute_actions( $crawler, $page, $info );
+            my $info = scrape( $body,
+                $config->{$scrape_item},
+                { url => "$url" },
+            );
+            execute_actions( $crawler, $page, $info );
 
-        # Extract all the information we want
-        #my $info = $page->scrape($rules, ...);
+            # Extract all the information we want
+            #my $info = $page->scrape($rules, ...);
 
-        push @rows, $info;
+            push @rows, $info;
+        }
 
     }
     # Well, not output, clear, but OK :D
@@ -318,8 +301,7 @@ sub scrape_pages($config, @items) {
 }
 
 sub do_scrape_items ( @items ) {
-    #my $config = load_config( $config_file );
-    my $config = {};
+    my $config = load_config( $config_file );
     scrape_pages( $config => @items );
 }
 
