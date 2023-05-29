@@ -77,6 +77,10 @@ has 'seen' => (
     default => sub { {} },
 );
 
+has 'cache' => (
+    is => 'ro',
+);
+
 # Having a limiter with a set of categories would be interesting
 # Number of scraping requests in flight
 has 'max_requests' => (
@@ -110,9 +114,29 @@ sub start_request($self, $r) {
 
     # XXX move to Future?
     my $req = $r->{req};
-    my $req_p = $self->ua->start_p( $req )->then(sub($tx) {
+
+    my $id = $self->normalize_request( { $req->req->method, $req->req->url } );
+    my $cached;
+    if( $id and my $c = $self->cache ) {
+        $cached = $c->{ $id };
+    }
+
+    my $req_p_start;
+    if( $cached ) {
+        $req_p_start = Mojo::Promise->new->resolve( $cached );
+
+    } else {
+        $req_p_start = $self->ua->start_p( $req )->then(sub($tx) {
+            if( my $c = $self->cache ) {
+                say "Caching $id (" . ref( $tx->result ) . ")";
+                $c->{$id} = $tx->result;
+            };
+            return $tx->result;
+        });
+    }
+    my $req_p = $req_p_start->then(sub($resp) {
         delete $s->inflight->{ $req };
-        $r->{res} = $tx->result;
+        $r->{res} = $resp;
         $s->emit('complete' => $r );
 
     })->catch(sub($err,@rest) {
@@ -144,7 +168,6 @@ sub next_page($self) {
     }
 
     # If we have nothing in flight, we can't wait for anything
-    local $| = 1;
     if( keys $self->inflight->%* ) {
         # Now, run things until we get a reply done
         do {
@@ -177,14 +200,14 @@ sub submit_request( $self, $request ) {
     weaken (my $s = $self);
     my $req = $self->ua->build_tx( %$request );
     my $queued = { req => $req, info => $info };
+    push $self->queue->@*, $queued;
+
     $req->res->on( 'progress' => sub($res,@rest) {
         $s->emit('progress', $queued, $res);
     });
     $req->res->on( 'finish' => sub($res,@rest) {
         $s->emit('finish', $queued, $res);
     });
-
-    push $self->queue->@*, $queued;
 
     return $queued
 }

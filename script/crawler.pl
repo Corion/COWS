@@ -87,9 +87,10 @@ sub load_config( $config_file ) {
     return $config;
 }
 
-sub create_crawler( $config ) {
+sub create_crawler( $config, $cache ) {
     my $crawler = COWS::Crawler->new(
         #base    => $config->{base},
+        cache => $cache,
         debug => $debug,
     );
 
@@ -239,7 +240,7 @@ sub execute_actions( $crawler, $page, $i ) {
 
 my %cache;
 sub scrape_pages($config, @items) {
-    my $crawler = create_crawler( $config );
+    my $crawler = create_crawler( $config, \%cache );
 
     my @rows;
     for my $url (@items) {
@@ -288,9 +289,7 @@ sub scrape_pages($config, @items) {
             );
             execute_actions( $crawler, $page, $info );
 
-            # Extract all the information we want
-            #my $info = $page->scrape($rules, ...);
-
+            # Keep our results
             push @rows, $info;
         }
 
