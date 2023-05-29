@@ -165,6 +165,8 @@ sub execute_actions( $page, $i ) {
 for my $url (@ARGV) {
     $crawler->submit_request({ GET => $url, info => { url => $url }} ) ;
 }
+
+my @res;
 while( my ($page) = $crawler->next_page ) {
     # $page contains the decoded body
     # or should that simply be the response?!
@@ -198,11 +200,13 @@ while( my ($page) = $crawler->next_page ) {
     ], {
         url => "" . $page->{req}->req->url,
     });
-    execute_actions( $page, $links );
+    execute_actions( $page, $info );
 
     #$crawler->submit_request($request);
     # Extract all the information we want
     #my $info = $page->scrape($rules, ...);
+
+    push @res, $info;
 
     # look at (say) $info->{type} to find what kind of page we are on
     # Download and store all images - this is something the crawler/UA also handle,
@@ -212,3 +216,6 @@ while( my ($page) = $crawler->next_page ) {
     #   $crawler->submit_download( info => $info, $i => $target_filename );
     #}
 }
+
+use Data::Dumper;
+say Dumper \@res;
