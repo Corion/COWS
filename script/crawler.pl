@@ -15,25 +15,56 @@ use lib '../Term-Output-List/lib';
 use Term::Output::List;
 my $printer = Term::Output::List->new();
 
-my %scoreboard;
-$crawler->on('progress' => sub($c, $r, $res) {
-    return unless my $len = $res->headers->content_length;
+my @scoreboard;
+
+sub status($res, $r) {
     my $size = $res->content->progress;
     my $url = $r->{req}->req->url;
-    $scoreboard{ $res } = sprintf "% 3d%s %s", $size == $len ? 100 : int($size / ($len / 100)), $url;
+    my $len = $res->headers->content_length;
 
-    #$printer->output_list(map { $scoreboard{ $_ } } sort keys %scoreboard);
+    my $viz = $url;
+    # Get terminal size
+    if( length $viz > 80 ) {
+        substr( $viz, 77 ) = '...';
+    }
+
+    return sprintf "% 3d %s %s", $size == $len ? 100 : int($size / ($len / 100)), $url;
+}
+
+sub output_scoreboard() {
+    #my $debug = sprintf "%d requests, %d pending", scalar(keys %scoreboard), scalar $crawler->queue->@*;
+    $printer->output_list(
+        #$debug,
+        map { status( @$_ ) } @scoreboard
+    );
+}
+
+sub msg($msg) {
+    $printer->output_permanent($msg);
+    output_scoreboard();
+}
+
+$crawler->on('progress' => sub($c, $r, $res) {
+    return unless my $len = $res->headers->content_length;
+
+    # Check if we already have this request in our list
+    if( ! grep { $_->[0] == $res and $_->[1] == $r } @scoreboard) {
+        push @scoreboard, [$res,$r]
+    }
+
+    output_scoreboard();
 });
 
 $crawler->on('error' => sub($c, $r) {
-    warn sprintf "Couldn't fetch %s", $r->{req}->req->url
+    $printer->output_permanent( sprintf "Couldn't fetch %s", $r->{req}->req->url );
+    output_scoreboard();
 });
 
 # remove things on complete
 $crawler->on('finish' => sub($c, $r, $res) {
-    delete $scoreboard{ $res };
-    $printer->output_permanent($r->{req}->req->url);
-    $printer->output_list(map { $scoreboard{ $_ } } sort keys %scoreboard);
+    @scoreboard = grep { $_->[0] == $res and $_->[1] == $r } @scoreboard;
+    #$printer->output_permanent($r->{req}->req->url);
+    output_scoreboard();
 });
 
 # We want three kinds of actions

@@ -148,14 +148,13 @@ sub next_page($self) {
     if( keys $self->inflight->%* ) {
         # Now, run things until we get a reply done
         do {
-            print sprintf "%d requests, %d waiting\r", scalar keys $self->inflight->%*, scalar $self->queue->@*;
+            #print sprintf "%d requests, %d waiting\r", scalar keys $self->inflight->%*, scalar $self->queue->@*;
             $self->ioloop->one_tick;
         } until $res or $error;
-        print "\n";
 
         return $res
     } else {
-        say "No inflight requests";
+        #say "No inflight requests";
         return
     }
 }
@@ -216,7 +215,7 @@ sub submit_download( $self, $request, $filename ) {
     });
 
     push $self->queue->@*, $queued;
-    say "$request->{GET} -> $filename";
+    #say "$request->{GET} -> $filename";
 
     return $queued
 }
