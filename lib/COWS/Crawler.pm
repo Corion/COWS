@@ -99,8 +99,10 @@ sub normalize_request( $self, $request ) {
     # filter cookies? why?
     # also, we don't want hashes, but that's what we have currently
     # return $request->as_string
-    return URI->new( $request->{'GET'})->canonical
-    #return $request->{ 'GET' };
+
+    my $res = URI->new( $request->{'GET'})->canonical;
+    $res->fragment('');
+    return $res
 }
 
 sub start_request($self, $r) {

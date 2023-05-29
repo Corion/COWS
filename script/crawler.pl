@@ -129,7 +129,6 @@ while( my ($page) = $crawler->next_page ) {
 
         next unless $url =~ /^http/i;
         next unless $url =~ /^\Q$top\E/i;
-        $url->fragment('');
 
         #if( $url =~ /\.mpe?g/ ) {
         #    # do a HEAD instead?!
