@@ -9,6 +9,7 @@ use lib '../Term-Output-List/lib';
 use Term::Output::List;
 
 use Getopt::Long;
+use Encode 'decode';
 # Read merchant whitelist from config?
 use URI;
 use YAML 'LoadFile';
@@ -258,6 +259,14 @@ sub scrape_pages($config, @items) {
         # submit more navigation
         #my @links = $page->scrape( [ { name => link, query => 'a@href', munge => ['absolute'], } ] );
         my $body = $page->{res}->body;
+
+        # Do we always want to decode/upgrade this?!
+        my $ct = $page->{res}->headers->content_type;
+        if($ct =~ s/;\s*charset=(.*)$//) {
+            my $enc = $1;
+            $body = decode( $enc, $body );
+        }
+
         my $url = $page->{req}->req->url;
         #msg( sprintf "Handling %s (%x, %x)", $page->{req}->req->url, $page->{res}, $page->{req} );
         my $status = $page->{res}->code;
