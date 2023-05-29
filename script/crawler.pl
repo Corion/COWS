@@ -6,9 +6,6 @@ no warnings 'experimental::signatures';
 use COWS 'scrape';
 use URI;
 
-#
-my $crawler = COWS::Crawler->new(
-    # ua => my async ua
 );
 
 use lib '../Term-Output-List/lib';
@@ -44,32 +41,38 @@ sub msg($msg) {
     output_scoreboard();
 }
 
-$crawler->on('progress' => sub($c, $r, $res) {
-    return unless my $len = $res->headers->content_length;
-
-    # Check if we already have this request in our list
-    if( ! grep { $_->[0] == $res and $_->[1] == $r } @scoreboard) {
-        push @scoreboard, [$res,$r]
     }
+sub create_crawler( $config ) {
+    my $crawler = COWS::Crawler->new(
+        #base    => $config->{base},
+        debug => $debug,
+    );
 
-    output_scoreboard();
-});
+    $crawler->on('progress' => sub($c, $r, $res) {
+        return unless my $len = $res->headers->content_length;
 
-$crawler->on('error' => sub($c, $r) {
-    $printer->output_permanent( sprintf "Couldn't fetch %s", $r->{req}->req->url );
-    output_scoreboard();
-});
+        # Check if we already have this request in our list
+        if( ! grep { $_->[0] == $res and $_->[1] == $r } @scoreboard) {
+            push @scoreboard, [$res,$r]
+        }
 
-# remove things on complete
-$crawler->on('finish' => sub($c, $r, $res) {
-    @scoreboard = grep { $_->[0] == $res and $_->[1] == $r } @scoreboard;
-    #$printer->output_permanent($r->{req}->req->url);
-    output_scoreboard();
-});
+        output_scoreboard();
+    });
 
-my $top = shift @ARGV;
-if( ! @ARGV ) {
-    push @ARGV, $top;
+    $crawler->on('error' => sub($c, $r) {
+        msg( sprintf "Couldn't fetch %s", $r->{req}->req->url );
+        output_scoreboard();
+    });
+
+    # remove things on complete
+    $crawler->on('finish' => sub($c, $r, $res) {
+        @scoreboard = grep { $_->[0] != $res or $_->[1] != $r } @scoreboard;
+        #msg( sprintf "Finished %s", $r->{req}->req->url );
+        output_scoreboard();
+    });
+
+    return $crawler
+}
 }
 
 # We want three kinds of actions
@@ -77,7 +80,7 @@ if( ! @ARGV ) {
 # * download(url,filename) - download the URL to a file (filename is optional?)
 # * include(url) - (also) scrape the next page and include it here
 
-sub handle_follow( $page, $url ) {
+sub handle_follow( $crawler, $page, $url ) {
     # Should we warn about bad URLs?
     next unless $url =~ /^http/i;
 
@@ -92,7 +95,7 @@ sub handle_follow( $page, $url ) {
     $crawler->submit_request({info => $info, GET => "$url"});
 }
 
-sub handle_download( $page, $url, $filename=undef ) {
+sub handle_download( $crawler, $page, $url, $filename=undef ) {
     # launch a download
     my $info = {
         url => $url,
@@ -120,7 +123,7 @@ my %actions = (
     download => \&handle_download,
 );
 
-sub execute_actions( $page, $i ) {
+sub execute_actions( $crawler, $page, $i ) {
     if( ! ref $i ) {
         # ignore
 
@@ -146,18 +149,18 @@ sub execute_actions( $page, $i ) {
                 }
 
                 for my $val ($i->{$args[0]}->@*) {
-                    $actions{ $name }->( $page, $val );
+                    $actions{ $name }->( $crawler, $page, $val );
                 };
 
                 #say "Action: $name $args[0] $i->{$args[0]}";
             }
         };
         for my $k (grep { $_ ne 'action' } keys %$i) {
-            execute_actions( $page, $i->{ $k } );
+            execute_actions( $crawler, $page, $i->{ $k } );
         }
 
     } elsif( ref $i eq 'ARRAY' ) {
-        execute_actions( $page, $_ ) for @$i;
+        execute_actions( $crawler, $page, $_ ) for @$i;
 
     }
 }
@@ -165,6 +168,7 @@ sub execute_actions( $page, $i ) {
 for my $url (@ARGV) {
     $crawler->submit_request({ GET => $url, info => { url => $url }} ) ;
 }
+    my $crawler = create_crawler( $config );
 
 my @res;
 while( my ($page) = $crawler->next_page ) {
