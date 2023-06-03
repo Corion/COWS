@@ -163,7 +163,9 @@ sub handle_follow( $crawler, $page, $url ) {
     if(
         $crawler->submit_request({info => $info, GET => "$url"})
     ) {
-        #msg("Queueing $url");
+        if( $verbose ) {
+            msg("Queueing $url");
+        }
         #msg( sprintf "Queueing %s (%x, %x)", $r->{req}->req->url, $res, $r );
     } else {
         #msg("Skipping $url");
