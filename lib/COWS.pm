@@ -21,115 +21,20 @@ COWS - Corion's Own Web Scraper
 
 =head1 SYNOPSIS
 
-XXX This needs restructuring. Each item should be a hashref.
+  use 5.020;
+  use COWS 'scrape';
 
-    [
-        {
-            name => 'my_post',
-            parts => [
-                {foo},
-                {bar},
-                {baz}
-            ],
-        },
-    ],
-
-=head2 Structured items
-
-We want
-
-  items => [
+  my $html = '...';
+  my $rules = [
       {
-          content => '...',
-          children => [
-              { content => '...', children => [], },
-              { content => '...', children => [], },
-              { content => '...', children => [], },
-          ],
+          name => 'link',
+          query => 'a@href',
+          munge => ['absolute'],
       },
-      { content => '...', children => [], },
-  ]
+  ];
+  my $res = scrape( $html, $rules, { url => 'https://example.com/' } );
 
-What kind of config gets us there (recursive stuff nonwithstanding)?
-
-Why do we want to have a hashref if we discard the name?!
-Maybe we want something like C<children>, but how to specify multiple
-connected sets of collections?!
-Something like
-
-    [
-        {
-            name => '???', # ignored
-            single => 1,
-            query => './p', # ...
-            fields => [
-                {
-                    name    => 'content'
-                    query   => './text()',
-                    single  => 1,
-                },
-                {
-                    name    => 'children',
-                    query   => './p',
-                    # how do we specify the recursion?!
-                    # I guess one level deeper...
-                    fields  => [ $_[ this ] ],
-                },
-            ],
-        },
-    ]
-
-results in
-
-    {
-        ...
-    }
-
-
-    use COWS 'scrape';
-
-    my $html = '...';
-    my $rules = [
-        { query => 'a@href',
-          name  => 'links',
-          munge => ['url'],
-        },
-    ];
-
-    my %mungers = (
-        # callbacks
-        url => sub( $text, $node, $info ) {
-            use URI;
-            return URI->new_abs( $text, $info->{url} );
-        },
-    );
-
-    my $data = scrape($html, $rules, {
-        mungers => \%mungers,
-        url => 'https://example.com'
-    });
-
-=cut
-
-=for thinking
-We want to think about tags/actions for items that simply are keys/values that
-get added to the returned items. These are then used by the crawler to find
-the new URLs resp. to trigger downloads.
-
-=for thinking
-Maybe have a munger "foo:bar" for calling actions?! This would be
-extensible, or even foo(bar) or foo('bar') - YAML will parse lists for
-us already, so we merely need parentheses+strings
-
-=for thinking
-
-  mungers: - action('download')
-  mungers: - action:download
-  mungers: - download # but this happens at the wrong time and is not associated with the rest!
-  tag: - 'download'
-
-=for thinking
-Maybe we want "allowed keywords" too, to customize the COWS struct parser
+  say "url: $_" for $res->{link}->@*;
 
 =cut
 
@@ -432,6 +337,12 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
     return $res;
 }
 
+=head2 C<< scrape >>
+
+  scrape( $html, $rules, $options );
+
+=cut
+
 sub scrape($html, $rules, $options = {} ) {
     my $encoding = $options->{encoding} // 'UTF-8'; # best guess
     $html =~ s!\A\s+!!sm;
@@ -504,5 +415,20 @@ Include the value of this node as an HTML string.
 =item C<munge>
 
 Apply the functions in the listed order to the value.
+
+=item C<tag>
+
+  tag => foo=bar
+  tag => baz:bat
+
+Add the key/value to the resulting hash. If the separator is C<=> , the result
+will be a plain scalar:
+
+  foo => 'bar',
+
+If the separator is C<:>, there can
+be multiple tags and they are collected in an arrayref:
+
+    baz => [ 'bat' ],
 
 =back
