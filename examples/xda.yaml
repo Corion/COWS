@@ -3,7 +3,7 @@ base: "https://forum.xda-developers.com/t/rom-unofficial-13-0-ota-signature-spoo
 items:
   - &items
     query: "article.message"
-    name: items
+    name: entries
     #debug: 1
     fields:
       - name: title
@@ -37,6 +37,24 @@ items:
         query: ".message-attribution-main .u-concealed a@href"
         single: 1
         munge: url
+  - name: navigation
+    discard: 1
+    query: /
+    fields:
+      - name: prev_page
+        query:
+        - .//link[@rel="prev"]/@href
+        munge: url
+      - name: next_page
+        query:
+        - /html/head/link[@rel="next"]/@href
+        tag: 'action=follow("next_page")'
+        #debug: 1
+        munge: url
+      - name: refetch_page
+        query:
+        - a.pageNavSimple-el--last@href
+        munge: url
 
 rss:
     - name: title
@@ -46,22 +64,6 @@ rss:
         - /html/head/title
     - *items
 
-navigation:
-  - name: prev_page
-    query:
-    - /html/head/link[@rel="prev"]/@href
-    single: 1
-    index: 1
-  - name: next_page
-    query:
-    - /html/head/link[@rel="next"]/@href
-    single: 1
-    index: 1
-  - name: refetch_page
-    query:
-    - a.pageNavSimple-el--last@href
-    single: 1
-    index: 1
 columns:
     - title
     - user
