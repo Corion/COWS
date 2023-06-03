@@ -9,19 +9,84 @@ COWS - Corion's Own Web Scraper
 
 # SYNOPSIS
 
+XXX This needs restructuring. Each item should be a hashref.
+
+    [
+        {
+            name => 'my_post',
+            parts => [
+                {foo},
+                {bar},
+                {baz}
+            ],
+        },
+    ],
+
+## Structured items
+
+We want
+
+    items => [
+        {
+            content => '...',
+            children => [
+                { content => '...', children => [], },
+                { content => '...', children => [], },
+                { content => '...', children => [], },
+            ],
+        },
+        { content => '...', children => [], },
+    ]
+
+What kind of config gets us there (recursive stuff nonwithstanding)?
+
+Why do we want to have a hashref if we discard the name?!
+Maybe we want something like `children`, but how to specify multiple
+connected sets of collections?!
+Something like
+
+    [
+        {
+            name => '???', # ignored
+            single => 1,
+            query => './p', # ...
+            fields => [
+                {
+                    name    => 'content'
+                    query   => './text()',
+                    single  => 1,
+                },
+                {
+                    name    => 'children',
+                    query   => './p',
+                    # how do we specify the recursion?!
+                    # I guess one level deeper...
+                    fields  => [ $_[ this ] ],
+                },
+            ],
+        },
+    ]
+
+results in
+
+    {
+        ...
+    }
+
+
     use COWS 'scrape';
 
     my $html = '...';
-    my $rules = {
-        items => { query => 'a@href',
-                   name => 'links',
-                   munge => ['absolute'],
-                 },
-    };
+    my $rules = [
+        { query => 'a@href',
+          name  => 'links',
+          munge => ['url'],
+        },
+    ];
 
     my %mungers = (
         # callbacks
-        absolute => sub( $text, $node, $info ) {
+        url => sub( $text, $node, $info ) {
             use URI;
             return URI->new_abs( $text, $info->{url} );
         },
@@ -32,33 +97,82 @@ COWS - Corion's Own Web Scraper
         url => 'https://example.com'
     });
 
-    div:       # unknown key/key which looks like a query, means query
-      anonymous: 1 # instead of creating { div => items => [] } create { items => [] }
-      items:   # how do we specify that these all get merged?! Maybe all arrays get merged?!
-        - name: price
-          query: div.gh_price
-          index: 1
-          force_single: 1
-          munge: extract_price()
-        - name: merchant
-          query: a@data-merchant-name
-          index: 1
-          force_single: 1
-        - name: url
-          query: a@href
-          index: 1
-          force_single: 1
-          absolute: 1
-    more_items:
-      - name: other_price
-        query: div.gh_price_2
-        index: 1
-        force_single: 1
-    title: /head/title # second query?!
+    mungers: - action('download')
+    mungers: - action:download
+    mungers: - download # but this happens at the wrong time and is not associated with the rest!
+    tag: - 'download'
 
-    # This would return
-    {
-      items => [ {}, {}, ... ],
-      title => '...',
-      more_items: [ ... ]
-    }
+# QUERY SYNTAX
+
+For each query, a hashref with the following keys is accepted
+
+- `name`
+
+    The name of this query. This will be used as a key in the resulting
+    hashref.
+
+- `query`
+
+    The CSS selector or XPath query to search for.
+
+- `fields`
+
+    Queries that should be matched below this node. The results will
+    get merged into a hashref. Duplicate names are not allowed (duh).
+
+        fields => [
+            { name => 'foo', ... },
+            { name => 'bar', ... },
+            { name => 'baz', ... },
+        ]
+
+    results in
+
+        { foo => ..., bar => ..., baz => ... }
+
+- `debug`
+
+    Output progress while stepping through this query. This is convenient
+    for finding why a specific query doesn't result in what you think it
+    should.
+
+- `single`
+
+    Expect only a single item, result will be the value of the query. If
+    the query has a `fields` field, it will be a hashref of the fields.
+
+    If this key is missing, the result will always be an arrayref.
+
+- `index`
+
+    Use the n-th node as result. The result will always be a hashref
+    or scalar value. This could be done in XPath but sometimes it's easier
+    to do it here.
+
+- `discard`
+
+    Do not use this intermediate value but replace it by the arrayref of
+    its `fields` value.
+
+- `html`
+
+    Include the value of this node as an HTML string.
+
+- `munge`
+
+    Apply the functions in the listed order to the value.
+
+- `tag`
+
+        tag => foo=bar
+        tag => baz:bat
+
+    Add the key/value to the resulting hash. If the separator is `=` , the result
+    will be a plain scalar:
+
+        foo => 'bar',
+
+    If the separator is `:`, there can
+    be multiple tags and they are collected in an arrayref:
+
+        baz => [ 'bat' ],
