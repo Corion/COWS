@@ -149,17 +149,19 @@ sub start_request($self, $r) {
     return $req
 }
 
-# Waits until the next request has finished and returns that
-sub next_page($self) {
+sub next_page_p( $self ) {
     my ($res, $error);
+    my $p = Mojo::Promise->new;
     $self->once('complete' => sub($self,$request) {
-        $res = $request;
+        $p->resolve( $request );
     });
     $self->on('error' => sub($self,$request) {
-        $error = 1;
+        $p->reject($request);
     });
 
     # If we have not enough things in flight, start some more
+    # Should this be another method, so we can refill also when we don'
+    # pick up fetched pages quick enough?
     while( keys $self->inflight->%* < $self->max_requests
            and $self->queue->@*
     ) {
@@ -167,15 +169,28 @@ sub next_page($self) {
         $self->start_request( $r );
     }
 
+    return $p
+}
+
+# Waits until the next request has finished and returns that
+sub next_page($self) {
+    my $done;
+    my $res_p = $self->next_page_p()->finally(sub {
+        $done++
+    });
+
+
     # If we have nothing in flight, we can't wait for anything
     if( keys $self->inflight->%* ) {
         # Now, run things until we get a reply done
         do {
             #print sprintf "%d requests, %d waiting\r", scalar keys $self->inflight->%*, scalar $self->queue->@*;
             $self->ioloop->one_tick;
-        } until $res or $error;
+        } until $done;
 
-        return $res
+        # WTF? The promise has no getter to get at the result? Should I really
+        # have to set up ->then / ->catch calls just to get at the results?!
+        return $res_p->{results}->[0]
     } else {
         #say "No inflight requests";
         return
