@@ -259,7 +259,7 @@ sub submit_download( $self, $request, $filename ) {
         }
     }
 
-    my $req = $self->ua->build_tx( $method => $url, \%headers, undef );
+    my $req = $self->ua->build_tx( $method => $url, \%headers, '' );
     my $queued = { req => $req, info => $info };
     $req->res->on( 'progress' => sub($res,@rest) {
         $s->emit('progress', $queued, $res);
