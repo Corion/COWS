@@ -9,6 +9,7 @@ use Scalar::Util 'weaken';
 use Mojo::UserAgent;
 use Mojo::IOLoop; # well, maybe move that to Net::Async or Future, later
 use URI;
+use HTTP::Date;
 
 =head1 NAME
 
@@ -248,18 +249,44 @@ sub submit_download( $self, $request, $filename ) {
     }
 
     weaken (my $s = $self);
+
+    # See also LWP::UserAgent
+    # If the file exists, add a cache-related header
+    if ( -e $filename ) {
+        my ($mtime) = ( stat($filename) )[9];
+        if ($mtime) {
+            $headers{ 'If-Modified-Since' } = HTTP::Date::time2str($mtime);
+        }
+    }
+
     my $req = $self->ua->build_tx( $method => $url, \%headers, undef );
     my $queued = { req => $req, info => $info };
     $req->res->on( 'progress' => sub($res,@rest) {
         $s->emit('progress', $queued, $res);
     });
     $req->res->on( 'finish' => sub($res,@rest) {
-        $res->save_to( $filename );
+
+        # Only save if successful and not already there:
+        if( $res->code =~ /^2\d\d/ ) {
+
+            $res->save_to( $filename );
+            # Update utime from the server Last-Changed header, if we know it
+            if ( my $lm = $res->headers->last_modified ) {
+                $lm = HTTP::Date::str2time( $lm );
+                utime $lm, $lm, $filename
+                    or warn "Cannot update modification time of '$filename': $!\n";
+            }
+
+        } elsif( $res->code == 304 ) {
+            # unchanged
+        } elsif( $res->code =~ /^3\d\d/ ) {
+            # what do we do about 301 redirects?!
+            warn sprintf "Got %d status for $url", $res->code;
+        }
         $s->emit('finish', $queued, $res);
     });
 
     push $self->queue->@*, $queued;
-    #say "$request->{GET} -> $filename";
 
     return $queued
 }
