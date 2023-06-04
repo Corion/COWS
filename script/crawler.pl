@@ -337,8 +337,16 @@ sub output( $str, $filename ) {
 
 sub output_data( $config, $output_type, $rows ) {
     if( $output_type eq 'table' ) {
+
         # Flatten the results
-        @$rows = map { @{ $_->{$scrape_item }} } @$rows;
+
+        if( $verbose ) {
+            if( ! $_->{$scrape_item}) {
+                say "No results for '$scrape_item'";
+            }
+        };
+
+        @$rows = map { @{ $_->{$scrape_item} // [] } } @$rows;
 
         my @columns;
         if( ! $config->{columns}) {
