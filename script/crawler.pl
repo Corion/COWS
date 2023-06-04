@@ -22,19 +22,21 @@ use DateTime;
 use DateTime::Format::ISO8601;
 
 GetOptions(
-    'config|c=s'      => \my $config_file,
-    'interactive|i'   => \my $interactive,
-    'output-type|t=s' => \my $output_type,
-    'output-file|o=s' => \my $output_file,
-    'scrape-item|s=s' => \my $scrape_item,
-    'debug|d'         => \my $debug,
-    'verbose'         => \my $verbose,
-    'not-above=s'     => \my $top,
+    'config|c=s'        => \my $config_file,
+    'interactive|i'     => \my $interactive,
+    'output-type|t=s'   => \my $output_type,
+    'output-file|o=s'   => \my $output_file,
+    'scrape-item|s=s'   => \my $scrape_item,
+    'debug|d'           => \my $debug,
+    'verbose'           => \my $verbose,
+    'not-above=s'       => \my $top,
+    'download-directory=s' => \my $target_directory,
 );
 
 binmode STDOUT, ':encoding(utf8)';
 
 $output_type //= 'table';
+$target_directory //= '.';
 
 my %default_start_rules = (
     table => 'items',
@@ -198,12 +200,14 @@ sub handle_download( $crawler, $page, $url, $filename=undef ) {
     #next if -e $filename;
     # resume downloads?
 
+    my $target = File::Spec->catfile( $target_directory, $filename );
+
     $crawler->submit_download({info => $info, method => 'GET', url => "$url",
         headers => {
             Referer => $page->{info}->{url},
             # cookies?
         }
-    } => $filename);
+    } => $target);
 }
 
 my %actions = (
