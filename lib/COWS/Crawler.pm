@@ -17,7 +17,7 @@ COWS::Crawler - a page/fetch queue
 =head1 SYNOPSIS
 
   my $crawler = COWS::Crawler->new();
-  $crawler->submit_request({ GET => $url, info => { url => $url }} ) ;
+  $crawler->submit_request({ method => 'GET', url => $url, info => { url => $url }} );
   while( my ($page) = $crawler->next_page ) {
       my $body = $page->{res}->body;
       my $url = $page->{req}->req->url;
@@ -44,7 +44,7 @@ COWS::Crawler - a page/fetch queue
             url => $u,
             from => $page->{info}->{url},
         };
-        $crawler->submit_request({info => $info, GET => "$url"});
+        $crawler->submit_request({info => $info, method => 'GET', url => "$url"});
     }
   }
 
@@ -199,7 +199,10 @@ sub next_page($self) {
 
 # do we want push/unshift, to manage the expansion
 sub submit_request( $self, $request ) {
-    my ( $info ) = delete $request->{ info };
+    my ( $info ) = $request->{ info };
+    my $method = $request->{method};
+    my $url = $request->{url};
+    my %headers = %{ $request->{headers} // {} };
 
     my $id = $self->normalize_request( $request );
     if( $id ) {
@@ -213,7 +216,7 @@ sub submit_request( $self, $request ) {
     }
 
     weaken (my $s = $self);
-    my $req = $self->ua->build_tx( %$request );
+    my $req = $self->ua->build_tx( $method => $url, \%headers );
     my $queued = { req => $req, info => $info };
     push $self->queue->@*, $queued;
 
@@ -229,7 +232,10 @@ sub submit_request( $self, $request ) {
 
 # do we want push/unshift, to manage the expansion
 sub submit_download( $self, $request, $filename ) {
-    my ( $info ) = delete $request->{ info };
+    my ( $info ) = $request->{ info };
+    my $method = $request->{method};
+    my $url = $request->{url};
+    my %headers = %{ $request->{headers} // {} };
 
     my $id = $self->normalize_request( $request );
     if( $id ) {
@@ -242,7 +248,7 @@ sub submit_download( $self, $request, $filename ) {
     }
 
     weaken (my $s = $self);
-    my $req = $self->ua->build_tx( %$request );
+    my $req = $self->ua->build_tx( $method => $url, \%headers, undef );
     my $queued = { req => $req, info => $info };
     $req->res->on( 'progress' => sub($res,@rest) {
         $s->emit('progress', $queued, $res);

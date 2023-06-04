@@ -161,7 +161,7 @@ sub handle_follow( $crawler, $page, $url ) {
     };
 
     if(
-        $crawler->submit_request({info => $info, GET => "$url"})
+        $crawler->submit_request({info => $info, method => 'GET', url => "$url"})
     ) {
         if( $verbose ) {
             msg("Queueing $url");
@@ -172,6 +172,17 @@ sub handle_follow( $crawler, $page, $url ) {
     }
 }
 
+my @known_extensions = (qw(
+    gif
+    jpg
+    jpeg
+    json
+    pdf
+    png
+    tar.gz
+));
+my $re_known_extensions = join "|", @known_extensions;
+
 sub handle_download( $crawler, $page, $url, $filename=undef ) {
     # launch a download
     my $info = {
@@ -179,19 +190,19 @@ sub handle_download( $crawler, $page, $url, $filename=undef ) {
         from => $page->{info}->{url},
     };
     my $filename;
-    if( $url =~ m!\b([^/?=]+\.jpe?g)\b! ) {
+    if( $url =~ m!\b([^/?=]+\.($re_known_extensions))\b! ) {
         $filename = $1;
     } else {
         die "Couldn't guess filename from '$url'";
     }
-    next if -e $filename;
+    #next if -e $filename;
     # resume downloads?
 
-    $crawler->submit_download({info => $info, GET => "$url",
-    #headers => {
-    #    Referer => $page->{info}->{url},
-    #    cookies?
-    #}
+    $crawler->submit_download({info => $info, method => 'GET', url => "$url",
+        headers => {
+            Referer => $page->{info}->{url},
+            # cookies?
+        }
     } => $filename);
 }
 
@@ -248,7 +259,7 @@ sub scrape_pages($config, @items) {
 
     my @rows;
     for my $url (@items) {
-        $crawler->submit_request({ GET => $url, info => { url => $url }} ) ;
+        $crawler->submit_request({ method => 'GET', url => $url, info => { url => $url }} ) ;
     }
 
     my @res;
