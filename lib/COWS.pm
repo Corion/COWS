@@ -80,11 +80,14 @@ sub _fix_up_selector( $q ) {
     return ($q, $attribute);
 }
 
-sub node_vis($node) {
+sub node_vis($node, $max_len=undef) {
+
+    $max_len //= `tput cols`;
+
     my $str = $node->toString;
     $str =~ s!\s+! !msg; # compress the string slightly
-    if( length $str > 80 ) {
-        substr( $str, 77 ) = '...';
+    if( length $str > $max_len-1 ) {
+        substr( $str, $max_len-3 ) = '...';
     }
     return $str
 }
