@@ -84,18 +84,20 @@ has 'cache' => (
 
 # Having a limiter with a set of categories would be interesting
 # Number of scraping requests in flight
+# Maybe we should revisit Future::Limiter , or rewrite it
 has 'max_requests' => (
     is => 'ro',
     default => 4,
 );
 
-# Number of downloads at the same time
+# Number of downloads at the same time (unused)
 has 'max_downloads' => (
     is => 'ro',
     default => 2,
 );
 
 # No download speed limiting
+# also downloads and normal requests compete, but do we care
 
 # We use this for populating the seen/cache thing
 sub normalize_request( $self, $request ) {
@@ -268,7 +270,6 @@ sub submit_download( $self, $request, $filename ) {
 
         # Only save if successful and not already there:
         if( $res->code =~ /^2\d\d/ ) {
-
             $res->save_to( $filename );
             # Update utime from the server Last-Changed header, if we know it
             if ( my $lm = $res->headers->last_modified ) {
