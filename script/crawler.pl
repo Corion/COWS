@@ -15,7 +15,8 @@ use URI;
 use YAML 'LoadFile';
 use Filesys::Notify::Simple;
 use File::Spec;
-use JSON 'encode_json';
+use JSON;
+use Data::Dumper;
 use Text::Table;
 use XML::Feed;
 use DateTime;
@@ -39,7 +40,8 @@ $output_type //= 'table';
 $target_directory //= '.';
 
 my %default_start_rules = (
-    table => 'items',
+    table  => 'items',
+    dumper => 'items',
     rss   => 'rss',
     json  => 'items',
     # output via TT / Mojolicious::Template?
@@ -240,7 +242,11 @@ sub execute_actions( $crawler, $page, $i ) {
                     die "Unknown action '$name'";
                 }
 
-                for my $val ($i->{$args[0]}->@*) {
+                my $r = $i->{$args[0]};
+                if( ! ref $r or ref $r ne 'ARRAY') {
+                    $r = [$r];
+                };
+                for my $val ($r->@*) {
                     $actions{ $name }->( $crawler, $page, $val );
                 };
 
@@ -339,13 +345,30 @@ sub output( $str, $filename ) {
     }
 }
 
+sub each_item( $ref, $cb ) {
+    if( ref $ref ) {
+        my $r = ref $ref;
+        if( $r eq 'ARRAY' ) {
+            for my $i ($ref->@*) {
+                each_item( $i, $cb );
+            }
+        } elsif( $r eq 'HASH' ) {
+            for my $i (keys $ref->%*) {
+                each_item( $ref->{$i}, $cb );
+            }
+        }
+    } else {
+        $cb->($ref);
+    }
+}
+
 sub output_data( $config, $output_type, $rows ) {
     if( $output_type eq 'table' ) {
 
         # Flatten the results
 
         if( $verbose ) {
-            if( ! $_->{$scrape_item}) {
+            if( ! $rows->[0]->{$scrape_item}) {
                 say "No results for '$scrape_item'";
             }
         };
@@ -404,7 +427,13 @@ sub output_data( $config, $output_type, $rows ) {
         output( $feed->as_xml, $output_file );
 
     } elsif( $output_type eq 'json' ) {
-        output( encode_json($rows), $output_file);
+        # downgrade URLs to strings!
+        my $json = JSON->new->convert_blessed;
+        local *URI::TO_JSON = *URI::as_string;
+
+        output( $json->encode($rows), $output_file);
+    } elsif( $output_type eq 'dumper' ) {
+        output( Dumper( $rows ), $output_file);
     } else {
         die "Unknown output type '$output_type'";
     }
@@ -429,5 +458,8 @@ if( $interactive ) {
     }) while 1;
 }
 
-#use Data::Dumper;
-#say Dumper \@res;
+# idea: Have related pages master/detail as a multi-section YAML file
+#       How do we recognize the page types? By URL, or by selector presence? Both?
+# Also, add a way to dump page results together with their URL, for later verification/self-test
+# also, add a scrape generator, where you input the values you want, and it returns
+# the queries/file you want
