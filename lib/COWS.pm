@@ -217,9 +217,6 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
     push $context->{path}->@*, $name;
 
     if( my $key = $rule->{meta} ) {
-        # XXX
-        use Data::Dumper; warn Dumper $options;
-        warn $key;
         push @res, $options->{ $key };
 
     } else {

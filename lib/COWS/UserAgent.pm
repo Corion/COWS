@@ -159,7 +159,7 @@ sub fetch_item( $self, $id) {
           ]
       }
   ], 'searchitem', {
-      url => $url, # info passed to
+      url => $url, # info passed to scraper
   });
 
 =cut
@@ -172,7 +172,7 @@ sub parse( $self, $rules, $id_or_html, $options ) {
     return COWS::scrape( $html, $rules,
         { debug => $options->{debug},
           mungers => $options->{mungers} // $self->mungers,
-          url => $options->{url}
+          %$options,
         });
 }
 
