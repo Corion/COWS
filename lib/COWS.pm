@@ -168,13 +168,13 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
     my @res;
 
     # Can we maybe do this check before we walk the tree/start scraping?!
-    our @keywords = (qw(single fields html index query name munge debug discard tag));
+    our @keywords = (qw(single fields html index query name munge debug discard tag meta));
     my %_rule = %{ $rule };
     delete @_rule{ @keywords };
     croak "Unknown keyword(s) in rule '$rule->{name}': " . join ",", keys %_rule
         if scalar %_rule;
     if( exists $rule->{name} ) {
-        exists $rule->{query}
+        exists $rule->{query} or exists $rule->{meta}
             or croak "Need an XPath query for rule '$rule->{name}'";
     }
 
@@ -183,11 +183,12 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
     my $force_single;
     my $want_node_body;
     my @mungers;
+
     my $query = $rule->{ query };
     $query = [$query] if ! ref $query;
 
     $force_index = $rule->{ index };
-    $force_single = $rule->{ single };
+    $force_single = $rule->{ single } // $rule->{meta};
     $want_node_body = delete $rule->{ html };
 
     if( exists $rule->{ munge }) {
@@ -215,40 +216,48 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
 
     push $context->{path}->@*, $name;
 
-    for my $q (@$query) {
+    if( my $key = $rule->{meta} ) {
+        # XXX
+        use Data::Dumper; warn Dumper $options;
+        warn $key;
+        push @res, $options->{ $key };
 
-        # Fix up the query
-        my( $query, $attribute ) = _fix_up_selector($q);
+    } else {
 
-        my @found = scrape_xml_single_query(
-            context        => $context,
-            options        => $options,
-            debug          => $debug,
-            node           => $node,
-            name           => $name,
-            query          => $query,
-            attribute      => $attribute,
-            rules          => $rule,
-            mungers        => \@mungers,
-            force_index    => $force_index,
-            force_single   => $force_single,
-            want_node_body => $want_node_body,
-        );
+        for my $q (@$query) {
 
-        # Is this unwrapping across results OK here?!
-        for my $i (map { @$_ } @found ) {
-            my ($node, $val ) = @$i;
-            if( my $child_rules = $rule->{fields}) {
-                # collect the fields for each element too
-                my $info = merge_xml_rules( $node, $child_rules, $options, $context );
+            # Fix up the query
+            my( $query, $attribute ) = _fix_up_selector($q);
 
-                push @res, $info;
+            my @found = scrape_xml_single_query(
+                context        => $context,
+                options        => $options,
+                debug          => $debug,
+                node           => $node,
+                name           => $name,
+                query          => $query,
+                attribute      => $attribute,
+                rules          => $rule,
+                mungers        => \@mungers,
+                force_index    => $force_index,
+                force_single   => $force_single,
+                want_node_body => $want_node_body,
+            );
 
-            } else {
-                # Use the values instead of the nodes
-                push @res, $val;
+            # Is this unwrapping across results OK here?!
+            for my $i (map { @$_ } @found ) {
+                my ($node, $val ) = @$i;
+                if( my $child_rules = $rule->{fields}) {
+                    # collect the fields for each element too
+                    my $info = merge_xml_rules( $node, $child_rules, $options, $context );
+                    push @res, $info;
+
+                } else {
+                    # Use the values instead of the nodes
+                    push @res, $val;
+                }
+
             }
-
         }
     }
 
