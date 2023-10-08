@@ -64,7 +64,7 @@ sub status($res, $r) {
     my $len = $res->headers->content_length;
 
     my $viz = $url;
-    # Get terminal size
+    # XXX Get terminal size
     if( length $viz > 80 ) {
         substr( $viz, 77 ) = '...';
     }
