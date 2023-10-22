@@ -145,7 +145,7 @@ sub scrape_xml_single_query(%options) {
     }
 
     for my $item (@found) {
-        next unless $item;
+        next unless defined $item;
         my $val = maybe_attr( $item, $attribute );
         if( $want_node_body ) {
             $val = $item->toString;
