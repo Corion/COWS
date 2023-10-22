@@ -147,6 +147,7 @@ sub scrape_xml_single_query(%options) {
     for my $item (@found) {
         next unless defined $item;
         my $val = maybe_attr( $item, $attribute );
+        #say "Processing $item => $val" if $debug;
         if( $want_node_body ) {
             $val = $item->toString;
             # Strip the tag itself
@@ -155,6 +156,7 @@ sub scrape_xml_single_query(%options) {
         }
 
         my $scraped = scalar _apply_mungers( $val => $mungers, $item, $options );
+        #say "==> $scraped";
         push @res,
             [ $item, $scraped ];
     }
@@ -305,6 +307,7 @@ sub merge_xml_rules( $node, $rules, $options, $context ) {
             }
 
         } else {
+            #say "$r->{name} => $child_value";
 
             $info{ $r->{name} } = $child_value;
         };
