@@ -90,6 +90,15 @@ sub load_config( $config_file ) {
     if( ! $config->{$scrape_item} ) {
         die "$config_file: No 'items' section found";
     }
+    if( my $m = $config->{mungers} ) {
+        for my $munger ( keys $m->%* ) {
+            $m->{$munger} = eval $m->{$munger}
+                or warn $@;
+        }
+    } else {
+        # set up an empty hash
+        $config->{mungers} = {};
+    }
     return $config;
 }
 
@@ -98,6 +107,7 @@ sub create_crawler( $config, $cache ) {
         #base    => $config->{base},
         cache => $cache,
         debug => $debug,
+        mungers => { %COWS::Mungers::mungers, $config->{mungers}->%*, }
     );
 
     $crawler->on('progress' => sub($c, $r, $res) {
