@@ -49,6 +49,8 @@ sub maybe_attr( $item, $attribute ) {
     return $val;
 }
 
+# XXX handle plain scalars and returned futures
+# resp. upgrade all plain scalars to immerdiate futures
 sub _apply_mungers( $val, $mungers, $node, $options ) {
     $mungers //= [];
     my @l = ($val, @$mungers);
@@ -70,6 +72,8 @@ sub _fix_up_selector( $q ) {
     # except if they are absolute to the root element. Not ideal.
     if($q =~ m!^//! ) {
         $q = ".$q";
+    } elsif( $q =~ m!^[^/]! ) {
+        $q = "./$q";
     }
 
     # If we stripped off the attribute before, tack it on again
@@ -165,12 +169,14 @@ sub scrape_xml_single_query(%options) {
             $val =~ s!</[^>]+>\z!!ms;
         }
 
+# if _apply_mungers returns an array of futures
         my $scraped = scalar _apply_mungers( $val => $mungers, $item, $options );
         #say "==> $scraped";
         push @res,
             [ $item, $scraped ];
     }
 
+# return a future that resolves all the futures in @res?!
     return \@res
 }
 
@@ -292,6 +298,7 @@ sub merge_xml_rules( $node, $rules, $options, $context ) {
         };
 
         my $child_value = scrape_xml_query( $node, $r, $options, $context );
+        # Future ->then(...)
         if( $r->{discard} ) {
             # unwrap this intermediate result
             my $val;
