@@ -7,6 +7,7 @@ use feature 'signatures';
 no warnings 'experimental::signatures';
 use Exporter 'import';
 
+use File::Spec;
 use XML::LibXML;
 use HTML::Selector::XPath 'selector_to_xpath';
 use List::Util 'reduce';
@@ -80,9 +81,18 @@ sub _fix_up_selector( $q ) {
     return ($q, $attribute);
 }
 
+sub _term_cols() {
+    state $have_tput = system('tput cols 2>&1 >'.File::Spec->devnull);
+    if( 0==$have_tput ) {
+        return 0+`tput cols`;
+    } else {
+        return 80
+    }
+}
+
 sub node_vis($node, $max_len=undef) {
 
-    $max_len //= `tput cols`;
+    $max_len //= _term_cols;
 
     my $str = $node->toString;
     $str =~ s!\s+! !msg; # compress the string slightly
