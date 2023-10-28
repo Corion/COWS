@@ -9,98 +9,24 @@ COWS - Corion's Own Web Scraper
 
 # SYNOPSIS
 
-XXX This needs restructuring. Each item should be a hashref.
-
-    [
-        {
-            name => 'my_post',
-            parts => [
-                {foo},
-                {bar},
-                {baz}
-            ],
-        },
-    ],
-
-## Structured items
-
-We want
-
-    items => [
-        {
-            content => '...',
-            children => [
-                { content => '...', children => [], },
-                { content => '...', children => [], },
-                { content => '...', children => [], },
-            ],
-        },
-        { content => '...', children => [], },
-    ]
-
-What kind of config gets us there (recursive stuff nonwithstanding)?
-
-Why do we want to have a hashref if we discard the name?!
-Maybe we want something like `children`, but how to specify multiple
-connected sets of collections?!
-Something like
-
-    [
-        {
-            name => '???', # ignored
-            single => 1,
-            query => './p', # ...
-            fields => [
-                {
-                    name    => 'content'
-                    query   => './text()',
-                    single  => 1,
-                },
-                {
-                    name    => 'children',
-                    query   => './p',
-                    # how do we specify the recursion?!
-                    # I guess one level deeper...
-                    fields  => [ $_[ this ] ],
-                },
-            ],
-        },
-    ]
-
-results in
-
-    {
-        ...
-    }
-
-
+    use 5.020;
     use COWS 'scrape';
 
     my $html = '...';
     my $rules = [
-        { query => 'a@href',
-          name  => 'links',
-          munge => ['url'],
+        {
+            name => 'link',
+            query => 'a@href',
+            munge => ['absolute'],
         },
     ];
+    my $res = scrape( $html, $rules, { url => 'https://example.com/' } );
 
-    my %mungers = (
-        # callbacks
-        url => sub( $text, $node, $info ) {
-            use URI;
-            return URI->new_abs( $text, $info->{url} );
-        },
-    );
+    say "url: $_" for $res->{link}->@*;
 
-    my $data = scrape($html, $rules, {
-        mungers => \%mungers,
-        url => 'https://example.com'
-    });
+## `scrape`
 
-    mungers: - action('download')
-    mungers: - action:download
-    mungers: - download # but this happens at the wrong time and is not associated with the rest!
-    tag: - 'download'
+    scrape( $html, $rules, $options );
 
 # QUERY SYNTAX
 
