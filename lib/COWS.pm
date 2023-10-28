@@ -363,7 +363,7 @@ sub scrape_xml($node, $rules, $options={}, $context={} ) {
         or croak "Got $rules, expected ARRAY";
 
     local $context->{path} = [ @{ $context->{path} // [] }];
-    $options->{ mungers } //= { %COWS::Mungers::mungers };
+    $options->{ mungers } //= \%COWS::Mungers::mungers;
     my $res = merge_xml_rules( $node, $rules, $options, $context );
     return $res;
 }
