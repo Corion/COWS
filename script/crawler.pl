@@ -33,6 +33,9 @@ GetOptions(
     'not-above=s'       => \my $top,
     'download-directory=s' => \my $target_directory,
 );
+# XXX do we want a sleep option to wait between requests?
+#     between all requests?! what about requests from mungers?!
+#     or should effective_url not be a munger but an action?!
 
 binmode STDOUT, ':encoding(utf8)';
 
