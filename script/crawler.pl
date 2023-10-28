@@ -162,7 +162,7 @@ sub update_file( $filename, $new_content ) {
 # We want three kinds of actions
 # * follow(url) - enqueue+scrape the next page
 # * download(url,filename) - download the URL to a file (filename is optional?)
-# * include(url) - (also) scrape the next page and include it here
+# * include(url) - (also) scrape the next page and include it in the result set
 
 sub handle_follow( $crawler, $page, $url ) {
     # Should we warn about bad URLs?
