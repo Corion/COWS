@@ -50,7 +50,6 @@ my %module = (
     },
 
     PREREQ_PM => {
-        'Filter::signatures'       => 0, # actually, the (unlisted) Date::Extract needs it
         'Exporter'                 => 5, # for 'import'
         'XML::LibXML'              => 0,
         'Mojolicious'              => 0, # for the HTTP transport
@@ -63,6 +62,8 @@ my %module = (
         'YAML'                     => 0, # our config format
         'Filesys::Notify::Simple'  => 0,
         'HTML::Selector::XPath'    => 0,
+
+        'Date::Find'               => 0, # for the mungers
 
         # The output formats
         'JSON'               => 0,

@@ -6,7 +6,7 @@ no warnings 'experimental::signatures';
 use Exporter 'import';
 use URI;
 use lib '../App-moveyear/lib';
-use Date::Extract 'guess_ymd';
+use Date::Find 'guess_ymd';
 
 our @EXPORT_OK = qw(%mungers);
 
