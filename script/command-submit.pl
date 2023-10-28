@@ -87,6 +87,9 @@ sub client_submit( $options, @items ) {
         };
 
         # submit some client id too!
+        # do we really need the id? We can simply output whatever the server
+        # sends us instead. What else would we do?!
+        # We are done when the server closes the connection...
         for my $l (@items) {
             my $id = "$$\0" . $count++;
             if( ref $l ) {
