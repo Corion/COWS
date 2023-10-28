@@ -224,7 +224,9 @@ sub scrape_xml_query($node, $rule, $options={}, $context={} ) {
             } elsif( $options->{mungers}->{ $m }) { # name
                 $munger = $options->{mungers}->{ $m };
             } else {
-                croak "Got an unknown munger name '$m'";
+                croak "Got an unknown munger name '$m'."
+                    . " Known mungers are "
+                    . join ", ", sort keys $options->{mungers}->%*;
             }
             $munger
         } @$m;
