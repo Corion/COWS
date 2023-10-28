@@ -91,7 +91,7 @@ sub msg($msg) {
 sub load_config( $config_file ) {
     my $config = LoadFile( $config_file );
     if( ! $config->{$scrape_item} ) {
-        die "$config_file: No 'items' section found";
+        die "$config_file: No '$config->{$scrape_item}' section found";
     }
     if( my $m = $config->{mungers} ) {
         for my $munger ( keys $m->%* ) {
@@ -101,7 +101,7 @@ sub load_config( $config_file ) {
     } else {
         # set up an empty hash
         $config->{mungers} = {};
-    }
+    };
     return $config;
 }
 

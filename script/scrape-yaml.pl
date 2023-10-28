@@ -49,7 +49,7 @@ if( ! $scrape_item ) {
 sub load_config( $config_file ) {
     my $config = LoadFile( $config_file );
     if( ! $config->{items} ) {
-        die "$config_file: No 'items' section found";
+        die "$config_file: No '$config->{$scrape_item}' section found";
     }
     return $config;
 }
