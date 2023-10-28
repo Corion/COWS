@@ -110,7 +110,6 @@ sub create_crawler( $config, $cache ) {
         #base    => $config->{base},
         cache => $cache,
         debug => $debug,
-        mungers => { %COWS::Mungers::mungers, $config->{mungers}->%*, }
     );
 
     $crawler->on('progress' => sub($c, $r, $res) {
@@ -331,7 +330,10 @@ sub scrape_pages($config, @items) {
 
             my $info = scrape( $body,
                 $config->{$scrape_item},
-                { url => "$url", encoding => $enc },
+                { url => "$url",
+                  encoding => $enc,
+                  mungers => { %COWS::Mungers::mungers, $config->{mungers}->%*, },
+                },
             );
             execute_actions( $crawler, $page, $info );
 
