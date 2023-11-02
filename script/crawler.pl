@@ -143,14 +143,14 @@ sub update_file( $filename, $new_content ) {
     if( -f $filename ) {
         open my $fh, '<', $filename
             or die "Couldn't read '$filename': $!";
-        binmode STDOUT, ':encoding(utf8)';
+        binmode $fh, ':raw';
         local $/;
         $content = <$fh>;
     };
 
     if( $content ne $new_content ) {
         if( open my $fh, '>', $filename ) {
-            binmode STDOUT, ':encoding(utf8)';
+            binmode $fh, ':raw';
             print $fh $new_content;
         } else {
             warn "Couldn't (re)write '$filename': $!";
@@ -478,3 +478,5 @@ if( $interactive ) {
 # Also, add a way to dump page results together with their URL, for later verification/self-test
 # also, add a scrape generator, where you input the values you want, and it returns
 # the queries/file you want
+# idea: Also have a way to duplicate a value for all entries. But maybe that
+#       would simply be the appropriate absolute scraping rule
