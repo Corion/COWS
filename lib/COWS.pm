@@ -316,7 +316,6 @@ sub merge_xml_rules( $node, $rules, $options, $context ) {
             } else {
                 $val = $child_value;
             }
-
             for (keys %$val) {
                 # Can/should we merge identical key+value ?
                 if( exists $info{ $_ }) {
