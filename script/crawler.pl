@@ -2,6 +2,7 @@ use 5.020;
 use COWS::Crawler;
 use feature 'signatures';
 no warnings 'experimental::signatures';
+use experimental 'try';
 
 use COWS 'scrape';
 use URI;
@@ -454,7 +455,11 @@ sub output_data( $config, $output_type, $rows ) {
     }
 }
 
-do_scrape_items( @ARGV );
+try  {
+    do_scrape_items( @ARGV );
+} catch ($e) {
+    warn $e;
+}
 if( $interactive ) {
     $config_file = File::Spec->rel2abs( $config_file );
     my $watcher = Filesys::Notify::Simple->new( [$config_file] );
@@ -462,10 +467,11 @@ if( $interactive ) {
         for( @ev ) {
             # re-filter, since we maybe got more than we wanted
             if( $_->{path} eq $config_file ) {
-                eval {
+                try {
                     do_scrape_items(@ARGV)
-                };
-                warn $@ if $@;
+                } catch( $e ) {
+                    warn $e;
+                }
             #} else {
             #    warn "Ignoring change to $_->{path}";
             }
