@@ -19,7 +19,7 @@ use COWS::UserAgent;
 use Getopt::Long;
 
 use lib '../App-moveyear/lib';
-use Date::Extract 'guess_ymd';
+use Date::Find 'guess_ymd';
 
 GetOptions(
     'config|c=s'      => \my $config_file,
