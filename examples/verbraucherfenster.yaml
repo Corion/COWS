@@ -1,0 +1,53 @@
+---
+#base: "https://verbraucherfenster.hessen.de/ernaehrung/sichere-lebensmittel/veroeffentlichung-maengel-lfgb?geo_country=6412&field_pf_address_postal_code=&geo_radius=1&fulltextsearch=&displayFirst=list_first"
+base: "https://verbraucherfenster.hessen.de/ernaehrung/sichere-lebensmittel/veroeffentlichung-maengel-lfgb/maengel/mangel/view/2773/sAg5T3E/verbraucherfenster.frontend_display_maengel_controller_display/Mangel?displayFirst=list_first"
+items:
+  - &items
+    query: "//article/div[contains(@class, 'dbapps--detail-page')]"
+    name: entries
+    discard: 1
+    #debug: 1
+    fields:
+      - name: postdate
+        query: "//div[contains(@class,'col my-3')]/div/p[contains(text(),'Veröffentlichungsdatum')]"
+        munge: date
+        single: 1
+      - name: content
+        query: "//div[@class='row dbapps--content']//p[@class = 'mt-0']"
+        html: 1 # fetch whole node body
+        single: 1
+        munge: compress_whitespace
+      - name: permalink
+        query: '/html/head/link[@rel="canonical"]/@href'
+        munge: url
+        single: 1
+      - name: title
+        query: "//div[@class='adresse-betrieb']/p[1]"
+        single: 1
+  - name: navigation
+    #discard: 1
+    query: "//article[@class]"
+    fields:
+      - name: details
+        #discard: 1
+        debug: 1
+        query: "//a[@href][span[contains(@class, 'link-text')]]/@href"
+        tag: 'action=follow("details")'
+        munge: url
+
+rss:
+    - name: title
+      single: 1
+      query:
+        - /head/meta[@og:title]
+        - /html/head/title
+    - *items
+
+columns:
+    - title
+    - user
+    - avatar
+    - postdate
+    - permalink
+    - content
+
