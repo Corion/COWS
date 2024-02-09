@@ -248,7 +248,7 @@ sub execute_actions( $crawler, $page, $i ) {
                     die "Malformed action: '$action'";
                 };
                 my ($name, $args) = ($1,$2);
-                my @args = ($args =~ /"((?:[^\"]|\\.)+)"/g);
+                my @args = ($args =~ /"((?:[^\\"]|\\.)+)"/g);
 
                 if( ! exists $actions{ $name }) {
                     die "Unknown action '$name'";
