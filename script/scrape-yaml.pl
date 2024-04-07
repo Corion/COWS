@@ -112,7 +112,7 @@ sub output_data( $config, $output_type, $rows ) {
 
         # Flatten the results
         if( $rows->[0]->{$scrape_item } ) {
-            @$rows = map { @{ $rows->[0]->{$scrape_item }} } @$rows;
+            @$rows = map { @{ $_->{$scrape_item }} } @$rows;
         }
 
         my @columns;
