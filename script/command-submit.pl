@@ -138,11 +138,11 @@ my $is_server;
 END { unlink $domain_socket_name if $is_server };
 
 # create domain socket for submitting more things
-add_url_listener( path => $domain_socket_name );
+my $id = add_url_listener( path => $domain_socket_name );
 $is_server = 1;
 # optionally output the domain socket name?!
 # create tcp socket for submitting more things
-my $id = add_url_listener( address => 'localhost' );
+$id //= add_url_listener( address => 'localhost' );
 # optionally write the TCP port to a file, as a shell statement (?!)
 # or maybe write it to fd 3 ?
 # create named pipe on Windows
