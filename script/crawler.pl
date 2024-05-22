@@ -22,6 +22,7 @@ use Text::Table;
 use XML::Feed;
 use DateTime;
 use DateTime::Format::ISO8601;
+use File::Path 'mkpath';
 
 GetOptions(
     'config|c=s'        => \my $config_file,
@@ -214,6 +215,10 @@ sub handle_download( $crawler, $page, $url, $filename=undef ) {
     }
     #next if -e $filename;
     # resume downloads?
+
+    if( ! -d $target_directory ) {
+        mkpath $target_directory;
+    };
 
     my $target = File::Spec->catfile( $target_directory, $filename );
 
