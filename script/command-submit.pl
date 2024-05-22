@@ -151,7 +151,7 @@ $id //= add_url_listener( address => 'localhost' );
 
 # The progress output
 my $printer = Term::Output::List->new();
-my @scoreboard;
+my @scoreboard; # this (resp. the job list) would become a member of the handler class
 
 sub status($item) {
     my $perc = $item->percent;
