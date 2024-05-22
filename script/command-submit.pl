@@ -25,9 +25,11 @@ GetOptions(
 # XXX fix, later
 $dont_wait_for_completion //= 1;
 
-my $domain_dir    = $ENV{XDG_RUNTIME_DIR}
-               // $ENV{TEMP}
-               // '/tmp';
+my( $domain_dir)  = grep { defined $_ && -d $_ }
+                        $ENV{XDG_RUNTIME_DIR},
+                        $ENV{TEMP},
+                        '/tmp',
+                        ;
 $domain_socket_name //= $domain_dir
                      . "/fetcher-"
                      . ($ENV{LOGNAME} // $ENV{USER})
