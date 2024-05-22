@@ -57,8 +57,8 @@ sub load_config( $config_file ) {
 
 sub create_scraper( $config ) {
     my $scraper = COWS::UserAgent->new(
-        base    => $config->{base},
-        debug => $debug,
+        base    => $config->{base} // '',
+        debug   => $debug,
     );
 }
 
