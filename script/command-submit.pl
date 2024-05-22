@@ -164,6 +164,9 @@ sub output_scoreboard() {
         #$debug,
         map { status( $_ ) } @scoreboard
     );
+    if( ! @scoreboard ) {
+        Mojo::IOLoop->stop_gracefully;
+    }
 }
 
 sub msg($msg) {
@@ -201,9 +204,7 @@ sub handle_add_url( $line ) {
                 @scoreboard = grep { $_ != $item } @scoreboard;
                 $item->finish();
                 delete $item->{_feed};
-                if( ! @scoreboard ) {
-                    Mojo::IOLoop->stop_gracefully;
-                }
+                output_scoreboard();
             }
         },
     );
