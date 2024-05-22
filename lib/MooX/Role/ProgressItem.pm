@@ -43,8 +43,6 @@ MooX::Role::ProgressItem - store information about some progress
 
 =head2 C<< ->new >>
 
-
-
 =cut
 
 has 'total' => (
@@ -141,3 +139,19 @@ C< ->finish() > is called.
 =cut
 
 1;
+
+=head1 TO DO
+
+=head2 Handle failure
+
+Currently, we have no handling/events for failing things
+
+=head2 Handle stalls
+
+Timeouts should be handled by the failure above, but we might want to
+output a "stalled" status if some time passes without any progress being made.
+
+This would mean storing the C< time() > of last update and having a periodic
+callback in the parent handler that checks all jobs for being stalled.
+
+=cut
