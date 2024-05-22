@@ -20,6 +20,7 @@ GetOptions(
     'domain-socket=s' => \my $domain_socket_name,
     'background'      => \my $dont_wait_for_completion,
     'grace-timeout=s' => \my $grace_timeout,
+    'server'          => \my $keep_running,
 );
 
 # XXX fix, later
@@ -164,7 +165,7 @@ sub output_scoreboard() {
         #$debug,
         map { status( $_ ) } @scoreboard
     );
-    if( ! @scoreboard ) {
+    if( ! @scoreboard and ! $keep_running ) {
         Mojo::IOLoop->stop_gracefully;
     }
 }
