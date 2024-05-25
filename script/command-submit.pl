@@ -6,12 +6,53 @@ with 'MooX::Role::ProgressItem';
 
 1;
 
+package MooX::JobServer 0.01;
+use Moo 2;
+use experimental 'signatures';
+use File::Basename;
+
+with 'MooX::Role::EventEmitter';
+
+# emits
+# update (to update the scoreboard)
+# idle
+# added (when a new item must be started)
+
+has 'domain_dir' => (
+    is => 'ro',
+    default => \&_build_domain_socket_dir_default,
+);
+
+has 'domain_socket_name' => (
+    is => 'ro',
+    default => \&_build_domain_socket_name,
+);
+
+
+sub _build_domain_socket_dir_default($self, $env=\%ENV) {
+    # XXX for Windows, make this \\.\PIPE\
+    my( $domain_dir)  = grep { defined $_ && -d $_ }
+                            $env->{XDG_RUNTIME_DIR},
+                            $env->{TEMP},
+                            '/tmp',
+                            ;
+    return $domain_dir
+}
+
+sub _build_domain_socket_name( $self, $appname=basename($0), $env=\%ENV) {
+    my $fn = sprintf '%s-%s.sock', $appname, ($env->{LOGNAME} // $env->{USER} // $env->{USERNAME});
+    my $domain_socket_name = File::Spec->catfile( $self->domain_dir, $fn );
+    return $domain_socket_name;
+}
+
+package main;
+
 use 5.020;
 use Mojo::IOLoop;
 use Mojo::IOLoop::Stream;
 use Mojo::JSON 'encode_json', 'decode_json';
-use feature 'signatures';
-no warnings 'experimental::signatures';
+use experimental 'signatures';
+use PerlX::Maybe;
 
 use Term::Output::List;
 
@@ -26,16 +67,10 @@ GetOptions(
 # XXX fix, later
 $dont_wait_for_completion //= 1;
 
-my( $domain_dir)  = grep { defined $_ && -d $_ }
-                        $ENV{XDG_RUNTIME_DIR},
-                        $ENV{TEMP},
-                        '/tmp',
-                        ;
-$domain_socket_name //= $domain_dir
-                     . "/fetcher-"
-                     . ($ENV{LOGNAME} // $ENV{USER})
-                     . '.sock'
-                    ;
+my $s = MooX::JobServer->new(
+    maybe domain_socket_name => $domain_socket_name,
+);
+$domain_socket_name = $s->domain_socket_name;
 
 # Upscale @ARGV into "real" commands:
 my @items = @ARGV;
