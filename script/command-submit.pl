@@ -101,7 +101,7 @@ sub _build_worker( $self ) {
         $worker = $self->_build_server();
         my $l = $self->create_listener( { path => $domain_socket_name } );
         $self->cleanup(1);
-        $l->on( 'line' => sub($l) { $worker->add( $l ); } );
+        $l->on( 'line' => sub($s, $l) { $worker->add( $l ); } );
 
         # Also create a socket, if wanted
         #$self->create_listener( address => $domain_socket_name, $worker );
