@@ -347,6 +347,19 @@ sub add( $self, $job, $remote=undef ) {
     );
     push $self->jobs->@*, $item;
 
+    # This is the same between server and client
+    $item->on('finish' => sub($progress,@) {
+        my $j = $self->jobs;
+        $j->@* = grep { $_ != $progress } $j->@*;
+
+        if( ! $j->@* ) {
+            $self->emit('idle');
+        } else {
+            $self->emit('update');
+        };
+    });
+
+
     $s->write_line($line);
 
     $self->emit( 'added', $item );
