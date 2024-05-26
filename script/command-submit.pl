@@ -436,7 +436,6 @@ sub handle_add_url( $line ) {
     );
     push @scoreboard, $item;
 
-    #my $f = Future->new;
     $item->{_feed} = Mojo::IOLoop->recurring(
         1 => sub {
             $item->progress( $body++, 'process' );
