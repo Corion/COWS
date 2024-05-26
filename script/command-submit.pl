@@ -224,6 +224,8 @@ sub _build_client( $self, $options ) {
             });
             $s->on( close => sub($stream) {
                 # The other side closes if it is done with our stuff
+                # Should we maybe simply emit 'idle' here instead?!
+                # or "done" ?!
                 $loop->stop_gracefully if $loop;
             });
         };
@@ -298,16 +300,12 @@ has 'new_job' => (
     required => 1,
 );
 
-sub add( $self, $_job, $remote=undef ) {
-    my( $job, $id );
+sub add( $self, $job, $remote=undef ) {
+    my( $id );
     state $local_id;
     # XXX this should maybe happen in the socket listener instead?!
-    if( ref $_job and $remote ) {
-        $job = $_job->{payload};
-        $id  = $_job->{id};
-    } else {
-        $job = $_job;
-        # XXX make up a (local) id
+    if( ! $remote ) {
+        #  make up a (local) id
         $id = join "\0", $$, $local_id++;
     };
     my $progress = $self->new_job->( $job );
@@ -327,10 +325,9 @@ sub add( $self, $_job, $remote=undef ) {
         #main::msg(sprintf "Item %s done (%s)", $progress->id, $progress);
         #main::msg(sprintf "Jobs: " . join ", ", $j->@*);
 
+        $self->emit('update');
         if( ! $j->@* ) {
             $self->emit('idle');
-        } else {
-            $self->emit('update');
         };
     });
 
@@ -364,11 +361,11 @@ has 'server' => (
 # Should we track some kind of id so we can also get remote progress?!
 sub add( $self, $job, $remote=undef ) {
     # Send job to server
-    state $id = 1;
+    state $client_id = 1;
 
     my $want_responses = undef;
 
-    my $id = join( "\0", $$, $id++);
+    my $id = join( "\0", $$, $client_id++);
 
     my $line = ref $job ? encode_json( {
         id => $id, notify => $want_responses, payload => $job,
@@ -390,10 +387,9 @@ sub add( $self, $job, $remote=undef ) {
         my $j = $self->jobs;
         $j->@* = grep { $_ != $progress } $j->@*;
 
+        $self->emit('update');
         if( ! $j->@* ) {
             $self->emit('idle');
-        } else {
-            $self->emit('update');
         };
     });
 
