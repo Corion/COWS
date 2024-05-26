@@ -271,6 +271,7 @@ has 'new_job' => (
 
 sub add( $self, $_job, $remote=undef ) {
     my( $job, $id );
+    state $local_id;
     # XXX this should maybe happen in the socket listener instead?!
     if( ref $_job and $remote ) {
         $job = $_job->{payload};
@@ -278,7 +279,7 @@ sub add( $self, $_job, $remote=undef ) {
     } else {
         $job = $_job;
         # XXX make up a (local) id
-        $id = '-';
+        $id = join "\0", $$, $local_id++;
     };
     my $progress = $self->new_job->( $job );
     $progress->id( $id ) if $id;
