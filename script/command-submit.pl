@@ -106,7 +106,9 @@ sub _build_worker( $self ) {
         $worker = $self->_build_server();
         my $l = $self->create_listener( { path => $domain_socket_name } );
         $self->cleanup(1);
-        $l->on( 'line' => sub($s, $l) { $worker->add( $l ); } );
+        $l->on( 'line' => sub($s, $l) {
+            $worker->add( $l, "remote" );
+        });
 
         # Also create a socket, if wanted
         #$self->create_listener( address => $domain_socket_name, $worker );
@@ -220,25 +222,15 @@ sub create_listener( $self, $args ) {
         $stream->with_roles('+LineBuffer')->on(read_line => sub( $stream, $line, $sep) {
             # XXX decode the line to JSON before emitting it
             #$self->emit('line', $line );
+            #main::msg("Read line <<$line>>");
+
             if( $line =~ /\A\{/ ) {
                 $line = decode_json( $line );
             }
-            $obj->emit('line', $line );
-            #my $res = handle_add_url($line);
-            # Can we somehow keep track here or should that happen in the
-            # real code?!
-            # Do we even want? This means we create a full-blown non-persistent
-            # job server, instead of a small add-on ...
-            # how/where do we get a job id from?!
-            # Instead, have the user call "us" somehow?!
-            #if( defined $res ) {
-            #    $stream->write_line( encode_json( $res ));
-            #}
 
-            # Also, close the stream once all items are done?!
+            $obj->emit('line', $line );
         });
         $stream->watch_lines;
-
     });
 
     return $obj;
@@ -262,20 +254,38 @@ has 'new_job' => (
     required => 1,
 );
 
-sub add( $self, $_job ) {
-    my $progress = $self->new_job->( $_job );
+sub add( $self, $_job, $remote=undef ) {
+    my( $job, $id );
+    if( ref $_job and $remote ) {
+        $job = $_job->{payload};
+        $id  = $_job->{id};
+    } else {
+        $job = $_job;
+        # XXX make up a (local) id
+        $id = '-';
+    };
+    my $progress = $self->new_job->( $job );
+    $progress->id( $id ) if $id;
     push $self->jobs->@*, $progress;
     #main::msg(sprintf "Launching %s", $progress->visual );
     $self->emit( 'added', $progress );
     $self->emit( 'update' );
 
     # This is the same for client and server
-    $progress->on('progress' => sub { $self->emit( 'update' )});
+    $progress->on('progress' => sub { $self->emit( 'update' ); });
+
+    # If this is a remote item, also notify the other end:
+    if( $remote ) {
+        $progress->on('progress' => sub { main::msg("Notification to client for id $id (progress)") });
+        $progress->on('finish' => sub { main::msg("Notification to client for id $id (done)") });
+    };
 
     # This is the same for client and server
-    $progress->on('finish' => sub {
+    $progress->on('finish' => sub($progress,@) {
         my $j = $self->jobs;
         $j->@* = grep { $_ != $progress } $j->@*;
+        main::msg(sprintf "Item %s done (%s)", $progress->id, $progress);
+        main::msg(sprintf "Jobs: " . join ", ", $j->@*);
 
         if( ! $j->@* ) {
             $self->emit('idle');
@@ -310,9 +320,12 @@ has 'server' => (
 );
 
 # Should we track some kind of id so we can also get remote progress?!
-sub add( $self, $job ) {
+sub add( $self, $job, $remote=undef ) {
     # Send job to server
-    my $line = ref $job ? json_encode( $job ) : $job;
+    state $id = 1;
+
+    my $want_responses = undef;
+
     my $line = ref $job ? encode_json( { id => join( "\0", $$, $id++), notify => $want_responses, payload => $job }) : $job;
     my $s = $self->server;
 
