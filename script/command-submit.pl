@@ -169,20 +169,21 @@ sub _build_client( $self, $options ) {
         # XXX Tell the server we want to receive progress information
 
         if( ! $self->wait_for_completion ) {
-            #say "Will quit immediately";
+            main::msg("Will quit immediately");
             $stream->on(drain => sub {
                 #say "Shutting down";
                 $loop->stop_gracefully if $loop;
             });
 
         } else {
-            #say "Waiting for replies";
-            my $s = $stream->with_roles('+LineBuffer');
+            main::msg("Waiting for replies");
+            my $s = $stream->with_roles('+LineBuffer')->watch_lines;
             $s->on( read_line => sub( $stream, $line, $sep ) {
                 #say "REPLY: $line";
                 # U
                 # XXX Find what item was updated from ->jobs()
                 # emit a 'progress' on that item
+                main::msg("REPLY: $line");
 
                 $self->emit('update');
 
@@ -233,7 +234,7 @@ sub create_listener( $self, $args ) {
     # Should emit the line instead of invoking a callback
     my $obj = COWS::ProgressItem->new();
     my $id = Mojo::IOLoop->server( $args => sub( $loop, $stream, $id ) {
-        $stream->with_roles('+LineBuffer')->on(read_line => sub( $stream, $line, $sep) {
+        $stream->with_roles('+LineBuffer')->watch_lines->on(read_line => sub( $stream, $line, $sep) {
             # XXX decode the line to JSON before emitting it
             #$self->emit('line', $line );
             #main::msg("Read line <<$line>>");
@@ -270,6 +271,7 @@ has 'new_job' => (
 
 sub add( $self, $_job, $remote=undef ) {
     my( $job, $id );
+    # XXX this should maybe happen in the socket listener instead?!
     if( ref $_job and $remote ) {
         $job = $_job->{payload};
         $id  = $_job->{id};
@@ -287,12 +289,6 @@ sub add( $self, $_job, $remote=undef ) {
 
     # This is the same for client and server
     $progress->on('progress' => sub { $self->emit( 'update' ); });
-
-    # If this is a remote item, also notify the other end:
-    if( $remote ) {
-        $progress->on('progress' => sub { main::msg("Notification to client for id $id (progress)") });
-        $progress->on('finish' => sub { main::msg("Notification to client for id $id (done)") });
-    };
 
     # This is the same for client and server
     $progress->on('finish' => sub($progress,@) {
@@ -350,7 +346,7 @@ sub add( $self, $job, $remote=undef ) {
     );
     push $self->jobs->@*, $item;
 
-    $s->write("$line\n");
+    $s->write_line($line);
 
     $self->emit( 'added', $item );
     $self->emit( 'update' );
@@ -383,7 +379,7 @@ GetOptions(
 );
 
 # XXX fix, later
-$dont_wait_for_completion //= 1;
+#$dont_wait_for_completion //= 1;
 
 my $funnel = MooX::JobFunnel->new(
     maybe domain_socket_name  => $domain_socket_name,
