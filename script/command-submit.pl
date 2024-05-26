@@ -62,6 +62,7 @@ has 'new_job' => (
 
 sub DEMOLISH( $self, $global ) {
     if( $self->cleanup ) {
+        warn sprintf 'Removing "%s"', $self->domain_socket_name;
         unlink $self->domain_socket_name;
     }
 }
@@ -98,7 +99,9 @@ sub _build_worker( $self ) {
     };
 
     # XXX create TCP listener?
+
     if( ! $worker ) {
+        warn "Building server";
         $worker = $self->_build_server();
         my $l = $self->create_listener( { path => $domain_socket_name } );
         $self->cleanup(1);
@@ -108,6 +111,7 @@ sub _build_worker( $self ) {
         #$self->create_listener( address => $domain_socket_name, $worker );
     };
 
+    # XXX configure forwarding the events, like add/update/done/idle
     $worker->on( update => sub { $self->emit('update') });
 
     return $worker
@@ -143,6 +147,9 @@ sub _build_client( $self, $options ) {
 
         #$server->done( $stream );
         $server->resolve( $stream );
+
+        # Do some protocol negotiation here
+        # XXX Tell the server we want to receive progress information
 
         if( ! $self->wait_for_completion ) {
             #say "Will quit immediately";
