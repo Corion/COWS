@@ -428,10 +428,9 @@ sub handle_add_url( $line ) {
         1 => sub {
             $item->progress( $body++, 'process' );
             if( $body >= $size ) {
-                #@scoreboard = grep { $_ != $item } @scoreboard;
                 $item->finish();
+                Mojo::IOLoop->remove($item->{_feed});
                 delete $item->{_feed};
-                #output_scoreboard();
             }
         },
     );
@@ -440,7 +439,7 @@ sub handle_add_url( $line ) {
 
 $funnel->on('update' => \&output_scoreboard );
 for my $item (@ARGV) {
-    $funnel->add( $item );
+    $funnel->add( { visual => $item } );
 }
 
 # Actually, this should be $grace_timeout seconds after all items have been
