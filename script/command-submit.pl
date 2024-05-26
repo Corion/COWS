@@ -90,10 +90,11 @@ sub _build_worker( $self ) {
     if( -e $domain_socket_name ) {
         # XXX remove later
         my %options = (
-            wait_for_completion => !$self->wait_for_completion,
+            #wait_for_completion => !$self->wait_for_completion,
             path => $domain_socket_name,
         );
-        $worker = $self->_build_client();
+        use Data::Dumper; warn "Trying local domain path " . Dumper \%options;
+        $worker = $self->_build_client( \%options );
     };
 
     if( ! $worker ) {
