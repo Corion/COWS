@@ -301,9 +301,21 @@ has 'server' => (
 sub add( $self, $job ) {
     # Send job to server
     my $line = ref $job ? json_encode( $job ) : $job;
-    $self->server->write("$line\n");
+    my $s = $self->server;
 
     # Create a progress item and return that here!
+    my $item = COWS::ProgressItem->new(
+        total  => undef,
+        visual => 'remote',
+    );
+    push $self->jobs->@*, $item;
+
+    $s->write("$line\n");
+
+    $self->emit( 'added', $item );
+    $self->emit( 'update' );
+
+    return $item;
 }
 
 # How do we notify of
@@ -342,17 +354,6 @@ $domain_socket_name = $funnel->domain_socket_name;
 
 # Upscale @ARGV into "real" commands:
 my @items = @ARGV;
-
-if( -e $domain_socket_name ) {
-    # XXX remove later
-    my %options = (
-        wait_for_completion => !$dont_wait_for_completion,
-        socket_name => $domain_socket_name,
-    );
-    if( client_submit(\%options, @items)) {
-        exit
-    }
-}
 
 sub client_submit( $options, @items ) {
     #say "Submitting as client";
@@ -416,8 +417,8 @@ sub client_submit( $options, @items ) {
 }
 
 # XXX this should go into ::FD::Domainsocket (or some such, or does a domain socket vanish if the process exits?)
-my $is_server;
-END { unlink $domain_socket_name if $is_server };
+#my $is_server;
+#END { unlink $domain_socket_name if $is_server };
 
 # create domain socket for submitting more things
 #my $id = add_url_listener( path => $domain_socket_name );
