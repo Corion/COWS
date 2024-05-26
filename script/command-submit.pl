@@ -106,7 +106,7 @@ sub _build_worker( $self ) {
         $worker = $self->_build_server();
         my $l = $self->create_listener( { path => $domain_socket_name } );
         $self->cleanup(1);
-        $l->on( 'line' => sub($s, $l) {
+        $l->on( 'line' => sub($s, $stream, $line) {
             $worker->add( $l, "remote" );
         });
 
@@ -228,7 +228,7 @@ sub create_listener( $self, $args ) {
                 $line = decode_json( $line );
             }
 
-            $obj->emit('line', $line );
+            $obj->emit('line', $stream => $line );
         });
         $stream->watch_lines;
     });
