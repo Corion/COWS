@@ -118,17 +118,78 @@ sub _build_server( $self ) {
         new_job => $self->new_job,
     );
 
-    # XXX configure forwarding the events, like add/update/done/idle
-
     return $worker
 }
 
-sub _build_client( $self ) {
-    my $worker = MooX::JobFunnel::Worker::Client->new();
+sub _build_client( $self, $options ) {
+    my $loop = Mojo::IOLoop->singleton;
+    my $res = 1;
+    #use Data::Dumper; warn "Client options: " . Dumper $options;
+    #my $server = Future->new();
+    my $server = Mojo::Promise->new();
+    my $id = $loop->client( $options => sub ($loop, $err, $stream, @rest) {
+        if( $err ) {
+            $res = 0;
+            #use Data::Dumper; warn "Tried client options: " . Dumper $options;
+            #warn "$err; trying next candidate or building server instead";
+            #$loop->stop_gracefully;
+            # we thought we were the client, but we are the server
+            # return zero to the main process knows to continue
+            # XXX here, we need to upconvert to a ::Server instead!
+            # In this case, call ->_build_server, and return that
+            $server->reject();
+            return
+        };
 
-    # XXX configure forwarding the events, like add/update/done/idle
+        #$server->done( $stream );
+        $server->resolve( $stream );
 
-    return $worker
+        if( ! $self->wait_for_completion ) {
+            #say "Will quit immediately";
+            $stream->on(drain => sub {
+                #say "Shutting down";
+                $loop->stop_gracefully if $loop;
+            });
+
+        } else {
+            #say "Waiting for replies";
+            my $s = $stream->with_roles('+LineBuffer');
+            $s->on( read_line => sub( $stream, $line, $sep ) {
+                #say "REPLY: $line";
+                # U
+                # XXX Find what item was updated from ->jobs()
+                # emit a 'progress' on that item
+
+                $self->emit('update');
+
+                # Stop the loop if no outstanding replies (?)
+            });
+            $s->on( close => sub($stream) {
+                # The other side closes if it is done with our stuff
+                $loop->stop_gracefully if $loop;
+            });
+        };
+    });
+
+    #use Data::Dumper; warn "Waiting for connection to " . Dumper $options;
+    my $s;
+    $server->then(
+        sub { #warn "Have 'remote' stream";
+              $s = $_[0]
+            },
+        sub { #warn "No 'remote' stream";
+              undef $res
+            }
+    );
+    $server->wait;
+
+    if( $res ) {
+        my $worker = MooX::JobFunnel::Worker::Client->new( server => $s );
+
+        return $worker;
+    } else {
+        return
+    }
 }
 
 #package MooX::JobFunnel::Listener 0.01;
