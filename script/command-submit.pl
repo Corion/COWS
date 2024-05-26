@@ -108,9 +108,7 @@ sub _build_worker( $self ) {
         $self->cleanup(1);
         $l->on( 'line' => sub($s, $stream, $line) {
             my( $payload, $id );
-            if( $line =~ /\A\{/ ) {
-                $line = decode_json( $line );
-                # Unwrap payload/id
+            if( ref $line ) {
                 $payload = $line->{payload};
                 $id = $line->{id};
             } else {
