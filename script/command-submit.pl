@@ -91,7 +91,7 @@ sub _build_worker( $self ) {
         # XXX remove later
         my %options = (
             wait_for_completion => !$self->wait_for_completion,
-            socket_name => $domain_socket_name,
+            path => $domain_socket_name,
         );
         $worker = $self->_build_client();
     };
