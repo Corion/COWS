@@ -70,6 +70,10 @@ has 'progress_state' => (
     is => 'rw',
 );
 
+has 'id' => (
+    is => 'rw',
+);
+
 # Can we ->get this item? What for?
 
 sub percent( $self, $curr=$self->curr ) {
