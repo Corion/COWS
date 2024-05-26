@@ -401,7 +401,6 @@ my @items = @ARGV;
 
 # The progress output
 my $printer = Term::Output::List->new();
-my @scoreboard; # this (resp. the job list) would become a member of the handler class
 
 sub status($item) {
     my $perc = $item->percent;
@@ -444,7 +443,6 @@ sub handle_add_url( $line ) {
         action => 'launched',
         total  => $size,
     );
-    push @scoreboard, $item;
 
     $item->{_feed} = Mojo::IOLoop->recurring(
         1 => sub {
