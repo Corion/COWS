@@ -102,7 +102,7 @@ sub _build_worker( $self ) {
     # XXX create TCP listener?
 
     if( ! $worker ) {
-        warn "Building server";
+        #warn "Building server";
         $worker = $self->_build_server();
         my $l = $self->create_listener( { path => $domain_socket_name } );
         $self->cleanup(1);
@@ -111,13 +111,25 @@ sub _build_worker( $self ) {
             if( ref $line ) {
                 $payload = $line->{payload};
                 $id = $line->{id};
+                #main::msg("Got remote job $id");
             } else {
                 $payload = $line;
                 $id = '-';
             };
             my $item = $worker->add( $payload, "remote" );
+            $item->id($id);
+            my @keys = qw(id total action visual curr progress_state);
+            $item->{$_} //= $line->{$_} for @keys;
             $item->on('progress' => sub {
-                my $progress = encode_json({ id => $id, curr => $item->curr });
+                my @info = map { $_ => $item->$_ } @keys;
+                my $progress = encode_json({ @info });
+                #main::msg("SEND: $progress");
+                $stream->write_line( $progress );
+            });
+            $item->on('finish' => sub {
+                my @info = map { $_ => $item->$_ } @keys;
+                my $progress = encode_json({ @info });
+                #main::msg("FINI: $progress");
                 $stream->write_line( $progress );
             });
         });
