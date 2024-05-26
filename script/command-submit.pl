@@ -11,6 +11,7 @@ package MooX::JobFunnel 0.01;
 use Moo 2;
 use experimental 'signatures';
 use File::Basename;
+use Mojo::JSON 'decode_json';
 
 with 'MooX::Role::EventEmitter';
 
@@ -219,6 +220,9 @@ sub create_listener( $self, $args ) {
         $stream->with_roles('+LineBuffer')->on(read_line => sub( $stream, $line, $sep) {
             # XXX decode the line to JSON before emitting it
             #$self->emit('line', $line );
+            if( $line =~ /\A\{/ ) {
+                $line = decode_json( $line );
+            }
             $obj->emit('line', $line );
             #my $res = handle_add_url($line);
             # Can we somehow keep track here or should that happen in the
@@ -292,6 +296,7 @@ sub add( $self, $_job ) {
 package MooX::JobFunnel::Worker::Client;
 use Moo 2;
 use experimental 'signatures';
+use Mojo::JSON 'encode_json';
 
 with 'MooX::Role::EventEmitter';
 
@@ -308,6 +313,7 @@ has 'server' => (
 sub add( $self, $job ) {
     # Send job to server
     my $line = ref $job ? json_encode( $job ) : $job;
+    my $line = ref $job ? encode_json( { id => join( "\0", $$, $id++), notify => $want_responses, payload => $job }) : $job;
     my $s = $self->server;
 
     # Create a progress item and return that here!
