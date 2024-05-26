@@ -193,7 +193,30 @@ sub _build_client( $self, $options ) {
                 # U
                 # XXX Find what item was updated from ->jobs()
                 # emit a 'progress' on that item
-                main::msg("REPLY: $line");
+                #main::msg("REPLY: $line");
+
+                my $r = decode_json( $line );
+                if( my $id = $r->{id} ) {
+                    (my $item) = grep { $_->id eq $id } $self->jobs->@*;
+                    if( ! $item ) {
+                        main::msg("No item with id '$id' found?!");
+                        main::msg(Dumper($r));
+                    } else {
+                        my @keys = qw(total action visual );
+                        for( @keys ) {
+                            $item->{$_} = $r->{$_} if exists $r->{$_};
+                        };
+
+                        if( $r->{progress_state} eq 'progressing' ) {
+                            $item->progress( $r->{curr} );
+                        } elsif( $r->{progress_state} eq 'finished' ) {
+                            #main::msg("Item finished");
+                            $item->finish()
+                        } else {
+                            main::msg("Unknown progress state '$r->{progress_state}'");
+                        };
+                    };
+                };
 
                 $self->emit('update');
 
@@ -245,10 +268,6 @@ sub create_listener( $self, $args ) {
     my $obj = COWS::ProgressItem->new();
     my $id = Mojo::IOLoop->server( $args => sub( $loop, $stream, $id ) {
         $stream->with_roles('+LineBuffer')->watch_lines->on(read_line => sub( $stream, $line, $sep) {
-            # XXX decode the line to JSON before emitting it
-            #$self->emit('line', $line );
-            #main::msg("Read line <<$line>>");
-
             if( $line =~ /\A\{/ ) {
                 $line = decode_json( $line );
             }
@@ -305,12 +324,14 @@ sub add( $self, $_job, $remote=undef ) {
     $progress->on('finish' => sub($progress,@) {
         my $j = $self->jobs;
         $j->@* = grep { $_ != $progress } $j->@*;
-        main::msg(sprintf "Item %s done (%s)", $progress->id, $progress);
-        main::msg(sprintf "Jobs: " . join ", ", $j->@*);
+        #main::msg(sprintf "Item %s done (%s)", $progress->id, $progress);
+        #main::msg(sprintf "Jobs: " . join ", ", $j->@*);
 
         if( ! $j->@* ) {
             $self->emit('idle');
-        }
+        } else {
+            $self->emit('update');
+        };
     });
 
     # Fail?
@@ -347,13 +368,20 @@ sub add( $self, $job, $remote=undef ) {
 
     my $want_responses = undef;
 
-    my $line = ref $job ? encode_json( { id => join( "\0", $$, $id++), notify => $want_responses, payload => $job }) : $job;
+    my $id = join( "\0", $$, $id++);
+
+    my $line = ref $job ? encode_json( {
+        id => $id, notify => $want_responses, payload => $job,
+        # XXX make generic
+        visual => $job->{visual},
+    }) : $job;
     my $s = $self->server;
 
     # Create a progress item and return that here!
     my $item = COWS::ProgressItem->new(
         total  => undef,
-        visual => 'remote',
+        visual => 'waiting for remote',
+        id     => $id,
     );
     push $self->jobs->@*, $item;
 
@@ -429,6 +457,7 @@ my $printer = Term::Output::List->new();
 sub status($item) {
     my $perc = $item->percent;
     $perc = defined $perc ? sprintf "% 3d%%", $perc : ' -- ';
+    my $vis = $item->visual // '?';
     return sprintf "%s %s %s", $perc, $item->action, $item->visual;
 }
 
