@@ -11,7 +11,7 @@ package MooX::JobFunnel 0.01;
 use Moo 2;
 use experimental 'signatures';
 use File::Basename;
-use Mojo::JSON 'decode_json';
+use Mojo::JSON 'decode_json', 'encode_json';
 
 with 'MooX::Role::EventEmitter';
 
@@ -107,7 +107,21 @@ sub _build_worker( $self ) {
         my $l = $self->create_listener( { path => $domain_socket_name } );
         $self->cleanup(1);
         $l->on( 'line' => sub($s, $stream, $line) {
-            $worker->add( $l, "remote" );
+            my( $payload, $id );
+            if( $line =~ /\A\{/ ) {
+                $line = decode_json( $line );
+                # Unwrap payload/id
+                $payload = $line->{payload};
+                $id = $line->{id};
+            } else {
+                $payload = $line;
+                $id = '-';
+            };
+            my $item = $worker->add( $payload, "remote" );
+            $item->on('progress' => sub {
+                my $progress = encode_json({ id => $id, curr => $item->curr });
+                $stream->write_line( $progress );
+            });
         });
 
         # Also create a socket, if wanted
