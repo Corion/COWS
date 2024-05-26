@@ -350,79 +350,10 @@ my $funnel = MooX::JobFunnel->new(
           wait_for_completion => !$dont_wait_for_completion,
                       new_job => \&handle_add_url,
 );
-$domain_socket_name = $funnel->domain_socket_name;
 
 # Upscale @ARGV into "real" commands:
 my @items = @ARGV;
 
-sub client_submit( $options, @items ) {
-    #say "Submitting as client";
-    my $loop = Mojo::IOLoop->singleton;
-    my $res = 1;
-
-    my %outstanding; # unify with @scoreboard!
-    my $count = 0;
-
-    my $id = $loop->client( { path => $options->{socket_name} } => sub ($loop, $err, $stream, @rest) {
-        if( $err ) {
-            $res = 0;
-            $loop->stop_gracefully;
-            # we thought we were the client, but we are the server
-            # return zero to the main process knows to continue
-        };
-
-        if( $options->{dont_wait_for_completion} ) {
-            #say "Will quit immediately";
-            $stream->on(drain => sub {
-                #say "Shutting down";
-                $loop->stop_gracefully if $loop;
-            });
-
-        } else {
-            #say "Waiting for replies";
-            my $s = $stream->with_roles('+LineBuffer');
-            $s->on( read_line => sub( $stream, $line, $sep ) {
-                #say "REPLY: $line";
-                # U
-
-                # Stop if no outstanding replies
-            });
-            $s->on( close => sub($stream) {
-                # The other side closes if it is done with our stuff
-                $loop->stop_gracefully if $loop;
-            });
-        };
-
-        # submit some client id too!
-        # do we really need the id? We can simply output whatever the server
-        # sends us instead. What else would we do?!
-        # We are done when the server closes the connection...
-        for my $l (@items) {
-            my $id = "$$\0" . $count++;
-            if( ref $l ) {
-                local $l->{id} = $id;
-                $outstanding{ $id } = COWS::ProgressItem->new(
-                    total => undef,
-                    visual => $l->{url}, # ???
-                );
-            }
-            my $line = ref $l ? json_encode( $l ) : $l;
-            $stream->write("$line\n");
-        };
-    });
-
-    $loop->start unless $loop->is_running;
-
-    $res;
-}
-
-# XXX this should go into ::FD::Domainsocket (or some such, or does a domain socket vanish if the process exits?)
-#my $is_server;
-#END { unlink $domain_socket_name if $is_server };
-
-# create domain socket for submitting more things
-#my $id = add_url_listener( path => $domain_socket_name );
-#$is_server = 1;
 # optionally output the domain socket name?!
 # create tcp socket for submitting more things
 #$id //= add_url_listener( address => 'localhost' );
@@ -478,9 +409,6 @@ sub handle_add_url( $line ) {
         total  => $size,
     );
     push @scoreboard, $item;
-    #$item->on( start => sub { output_scoreboard });
-    #$item->on( progress => sub { output_scoreboard });
-    #$item->on( finish => sub { output_scoreboard });
 
     #my $f = Future->new;
     $item->{_feed} = Mojo::IOLoop->recurring(
@@ -494,22 +422,12 @@ sub handle_add_url( $line ) {
             }
         },
     );
-    # return a Future / Mojo::Promise , just in case somebody wants to
-    # keep track
-    # Do we want that even? Wouldn't some event emitter or callback be
-    # better?
-    # A Future would mean we get the final completion information, but
-    # we also want to assign/return some id and also emit intermediate results
-    # the event emitter could emit stuff, and potentially have an accessor
-    # like ->id() that returns the id for the client?!
-    # But that puts a burden on the programmer-user of this code again
     return $item
 }
 
 $funnel->on('update' => \&output_scoreboard );
 for my $item (@ARGV) {
     $funnel->add( $item );
-    #handle_add_url( $item );
 }
 
 # Actually, this should be $grace_timeout seconds after all items have been
