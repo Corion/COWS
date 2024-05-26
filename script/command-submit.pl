@@ -95,7 +95,7 @@ sub _build_worker( $self ) {
             #wait_for_completion => !$self->wait_for_completion,
             path => $domain_socket_name,
         );
-        use Data::Dumper; warn "Trying local domain path " . Dumper \%options;
+        #use Data::Dumper; warn "Trying local domain path " . Dumper \%options;
         $worker = $self->_build_client( \%options );
     };
 
