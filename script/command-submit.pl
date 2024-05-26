@@ -97,6 +97,7 @@ sub _build_worker( $self ) {
         $worker = $self->_build_client( \%options );
     };
 
+    # XXX create TCP listener?
     if( ! $worker ) {
         $worker = $self->_build_server();
         my $l = $self->create_listener( { path => $domain_socket_name } );
