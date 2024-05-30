@@ -184,14 +184,13 @@ sub _build_client( $self, $options ) {
             });
 
         } else {
-            #main::msg("Waiting for replies");
+            #say "Waiting for replies";
             my $s = $stream->with_roles('+LineBuffer')->watch_lines;
             $s->on( read_line => sub( $stream, $line, $sep ) {
                 #say "REPLY: $line";
                 # U
                 # XXX Find what item was updated from ->jobs()
                 # emit a 'progress' on that item
-                #main::msg("REPLY: $line");
 
                 my $r = decode_json( $line );
                 if( my $id = $r->{id} ) {
@@ -283,6 +282,7 @@ sub create_listener( $self, $args ) {
     my $obj = COWS::ProgressItem->new();
     my $id = Mojo::IOLoop->server( $args => sub( $loop, $stream, $id ) {
         $stream->with_roles('+LineBuffer')->watch_lines->on(read_line => sub( $stream, $line, $sep) {
+            #main::msg("Got line <$line>");
             if( $line =~ /\A\{/ ) {
                 $line = decode_json( $line );
             }
