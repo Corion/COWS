@@ -63,7 +63,7 @@ has 'new_job' => (
 
 sub DEMOLISH( $self, $global ) {
     if( $self->cleanup ) {
-        main::msg( sprintf 'Removing "%s"', $self->domain_socket_name );
+        #warn sprintf 'Removing "%s"', $self->domain_socket_name;
         unlink $self->domain_socket_name;
     }
 }
@@ -457,7 +457,10 @@ sub status($item) {
 
 sub output_scoreboard(@) {
     #my $debug = sprintf "%d requests, %d pending", scalar(keys %scoreboard), scalar $crawler->queue->@*;
-    my @scoreboard = $funnel->jobs->@*;
+    my @scoreboard;
+    if( $funnel ) {
+        @scoreboard = $funnel->jobs->@*;
+    };
     $printer->output_list(
         #$debug,
         map { status( $_ ) } @scoreboard
