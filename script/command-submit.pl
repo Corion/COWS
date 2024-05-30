@@ -295,9 +295,10 @@ sub create_listener( $self, $args ) {
     return $obj;
 }
 
-package MooX::JobFunnel::Worker::Server;
+package MooX::JobFunnel::Worker 0.01;
 use 5.020;
-use Moo 2;
+use Scalar::Util 'weaken';
+use Moo::Role 2;
 use experimental 'signatures';
 
 with 'MooX::Role::EventEmitter';
@@ -306,6 +307,42 @@ has 'jobs' => (
     is => 'ro',
     default => sub { [] },
 );
+
+sub add_job( $self, $progress ) {
+    weaken( my $s = $self );
+
+    push $self->jobs->@*, $progress;
+
+    $progress->on('progress' => sub {
+        $s->emit( 'update' );
+    });
+
+    say "Adding job " . $progress->id;
+    # XXX we also want to handle 'fail', if we ever implement it
+    $progress->on('finish' => sub($progress,@) {
+        my $j = $self->jobs;
+        $j->@* = grep { $_ != $progress } $j->@*;
+        #main::msg(sprintf "Item %s done (%s)", $progress->id, $progress);
+        #main::msg(sprintf "Jobs: " . join ", ", $j->@*);
+
+        $self->emit('update');
+        if( ! $j->@* ) {
+            $self->emit('idle');
+        };
+    });
+    $self->emit( 'added', $progress );
+    $self->emit( 'update' );
+
+    return $progress;
+};
+
+package MooX::JobFunnel::Worker::Server 0.01;
+use 5.020;
+use Carp 'croak';
+use Moo 2;
+use experimental 'signatures';
+
+with 'MooX::JobFunnel::Worker';
 
 # The callback
 has 'new_job' => (
@@ -318,40 +355,22 @@ sub add( $self, $job, $remote=undef ) {
     state $local_id;
     # XXX this should maybe happen in the socket listener instead?!
     my $progress = $self->new_job->( $job );
-    $progress->id( $id ) if $id;
     if( ! $remote ) {
         #  make up a (local) id
         $id = join "\0", $$, $local_id++;
+    #} else {
+    #    croak "Internal error: Got a progress item without a (remote) id";
     };
-    push $self->jobs->@*, $progress;
-    #main::msg(sprintf "Launching %s", $progress->visual );
-    $self->emit( 'added', $progress );
-    $self->emit( 'update' );
-
-    # This is the same for client and server
-    $progress->on('progress' => sub { $self->emit( 'update' ); });
-
-    # This is the same for client and server
-    $progress->on('finish' => sub($progress,@) {
-        my $j = $self->jobs;
-        $j->@* = grep { $_ != $progress } $j->@*;
-        #main::msg(sprintf "Item %s done (%s)", $progress->id, $progress);
-        #main::msg(sprintf "Jobs: " . join ", ", $j->@*);
-
-        $self->emit('update');
-        if( ! $j->@* ) {
-            $self->emit('idle');
-        };
-    });
+    $progress->id( $id ) if $id;
 
     # Fail?
     # Stalled?
+    $self->add_job( $progress );
 
     return $progress;
 }
 
 # How do we notify of
-# idle
 # done
 # ???
 
@@ -360,12 +379,7 @@ use Moo 2;
 use experimental 'signatures';
 use Mojo::JSON 'encode_json';
 
-with 'MooX::Role::EventEmitter';
-
-has 'jobs' => (
-    is => 'ro',
-    default => sub { [] },
-);
+with 'MooX::JobFunnel::Worker';
 
 has 'server' => (
     is => 'ro',
@@ -382,11 +396,11 @@ sub add( $self, $job, $remote=undef ) {
 
     my $line = ref $job ? encode_json( {
         id => $id, notify => $want_responses, payload => $job,
-        # XXX make generic
         # we'll fetch the visual from the worker
         #visual => $job->{visual},
     }) : $job;
     my $s = $self->server;
+    $s->write_line($line);
 
     # Create a progress item and return that here!
     my $item = COWS::ProgressItem->new(
@@ -394,30 +408,13 @@ sub add( $self, $job, $remote=undef ) {
         visual => 'waiting for remote',
         id     => $id,
     );
-    push $self->jobs->@*, $item;
 
-    # This is the same between server and client
-    $item->on('finish' => sub($progress,@) {
-        my $j = $self->jobs;
-        $j->@* = grep { $_ != $progress } $j->@*;
-
-        $self->emit('update');
-        if( ! $j->@* ) {
-            $self->emit('idle');
-        };
-    });
-
-
-    $s->write_line($line);
-
-    $self->emit( 'added', $item );
-    $self->emit( 'update' );
+    $self->add_job( $item );
 
     return $item;
 }
 
 # How do we notify of
-# idle
 # done
 # ???
 
