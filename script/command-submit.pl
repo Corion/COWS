@@ -262,8 +262,23 @@ MooX::JobFunnel::Listener - command channel
 
 =cut
 
+=head2 C<< ->create_listener $args >>
+
+  my $l = $f->create_listener( { path => '/path/to/socket' } );
+  my $l = $f->create_listener( { address => 'localhost', port => 1042 } );
+  $l->on('line' => sub($stream, $line) {
+      say "< $line";
+  });
+
+Creates a listening socket and configures it for reading lines. Returns an
+object that emits C<line> events.
+
+Takes the same arguments as C<< Mojo::IOLoop->server >> .
+
+=cut
+
 sub create_listener( $self, $args ) {
-    # Should emit the line instead of invoking a callback
+    # This should be some better object than COWS::ProgressItem
     my $obj = COWS::ProgressItem->new();
     my $id = Mojo::IOLoop->server( $args => sub( $loop, $stream, $id ) {
         $stream->with_roles('+LineBuffer')->watch_lines->on(read_line => sub( $stream, $line, $sep) {
