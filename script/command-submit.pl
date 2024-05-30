@@ -115,6 +115,7 @@ sub _build_worker( $self ) {
                 $payload = $line->{payload};
                 $id = $line->{id};
                 #main::msg("Got remote job $id");
+                #$payload->{id} //= $id;
             } else {
                 $payload = $line;
                 $id = '-';
