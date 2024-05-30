@@ -8,6 +8,7 @@ with 'MooX::Role::ProgressItem';
 
 # XXX rename from MooX to (maybe) COWS:: or something else
 package MooX::JobFunnel 0.01;
+use 5.020;
 use Moo 2;
 use experimental 'signatures';
 use File::Basename;
