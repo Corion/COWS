@@ -142,6 +142,7 @@ sub _build_worker( $self ) {
     };
 
     # XXX configure forwarding the events, like add/update/done/idle
+    # XXX Weaken this
     $worker->on( update => sub { $self->emit('update') });
     $worker->on( idle   => sub { $self->emit('idle') });
 
