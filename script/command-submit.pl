@@ -317,7 +317,6 @@ sub add_job( $self, $progress ) {
         $s->emit( 'update' );
     });
 
-    say "Adding job " . $progress->id;
     # XXX we also want to handle 'fail', if we ever implement it
     $progress->on('finish' => sub($progress,@) {
         my $j = $self->jobs;
