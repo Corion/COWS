@@ -143,6 +143,7 @@ sub _build_worker( $self ) {
 
     # XXX configure forwarding the events, like add/update/done/idle
     $worker->on( update => sub { $self->emit('update') });
+    $worker->on( idle   => sub { $self->emit('idle') });
 
     return $worker
 }
@@ -216,8 +217,6 @@ sub _build_client( $self, $options ) {
                 };
 
                 $self->emit('update');
-
-                # Stop the loop if no outstanding replies (?)
             });
             $s->on( close => sub($stream) {
                 # The other side closes if it is done with our stuff
@@ -478,10 +477,6 @@ sub output_scoreboard(@) {
         #$debug,
         map { status( $_ ) } @scoreboard
     );
-    # This should be the "idle" handler, not here
-    if( ! @scoreboard and ! $keep_running ) {
-        Mojo::IOLoop->stop_gracefully;
-    }
 }
 
 sub msg($msg) {
@@ -514,6 +509,9 @@ sub handle_add_url( $line ) {
 }
 
 $funnel->on('update' => \&output_scoreboard );
+if( !$keep_running ) {
+    $funnel->on('idle' => sub { Mojo::IOLoop->stop_gracefully });
+};
 for my $item (@ARGV) {
     $funnel->add( { visual => $item } );
 }
