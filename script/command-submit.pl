@@ -63,7 +63,7 @@ has 'new_job' => (
 
 sub DEMOLISH( $self, $global ) {
     if( $self->cleanup ) {
-        warn sprintf 'Removing "%s"', $self->domain_socket_name;
+        main::msg( sprintf 'Removing "%s"', $self->domain_socket_name );
         unlink $self->domain_socket_name;
     }
 }
@@ -97,10 +97,12 @@ sub _build_worker( $self ) {
         );
         #use Data::Dumper; warn "Trying local domain path " . Dumper \%options;
         $worker = $self->_build_client( \%options );
+        #if( ! $worker ) {
+        #    warn "No client, creating server";
+        #};
     };
 
     # XXX create TCP listener?
-
     if( ! $worker ) {
         #warn "Building server";
         $worker = $self->_build_server();
@@ -159,34 +161,29 @@ sub _build_client( $self, $options ) {
     #my $server = Future->new();
     my $server = Mojo::Promise->new();
     my $id = $loop->client( $options => sub ($loop, $err, $stream, @rest) {
+        #use Data::Dumper; warn("->client CB for " . Dumper $options);
         if( $err ) {
             $res = 0;
-            #use Data::Dumper; warn "Tried client options: " . Dumper $options;
-            #warn "$err; trying next candidate or building server instead";
-            #$loop->stop_gracefully;
             # we thought we were the client, but we are the server
-            # return zero to the main process knows to continue
-            # XXX here, we need to upconvert to a ::Server instead!
-            # In this case, call ->_build_server, and return that
+            # fail the promise the worker builder knows to continue
             $server->reject();
             return
         };
 
-        #$server->done( $stream );
         $server->resolve( $stream );
 
         # Do some protocol negotiation here
         # XXX Tell the server we want to receive progress information
 
         if( ! $self->wait_for_completion ) {
-            main::msg("Will quit immediately");
+            #main::msg("Will quit immediately");
             $stream->on(drain => sub {
                 #say "Shutting down";
                 $loop->stop_gracefully if $loop;
             });
 
         } else {
-            main::msg("Waiting for replies");
+            #main::msg("Waiting for replies");
             my $s = $stream->with_roles('+LineBuffer')->watch_lines;
             $s->on( read_line => sub( $stream, $line, $sep ) {
                 #say "REPLY: $line";
@@ -231,7 +228,6 @@ sub _build_client( $self, $options ) {
         };
     });
 
-    #use Data::Dumper; warn "Waiting for connection to " . Dumper $options;
     my $s;
     $server->then(
         sub { #warn "Have 'remote' stream";
@@ -241,6 +237,7 @@ sub _build_client( $self, $options ) {
               undef $res
             }
     );
+    #warn "Entering waitloop to await initalized server";
     $server->wait;
 
     if( $res ) {
@@ -304,12 +301,12 @@ sub add( $self, $job, $remote=undef ) {
     my( $id );
     state $local_id;
     # XXX this should maybe happen in the socket listener instead?!
+    my $progress = $self->new_job->( $job );
+    $progress->id( $id ) if $id;
     if( ! $remote ) {
         #  make up a (local) id
         $id = join "\0", $$, $local_id++;
     };
-    my $progress = $self->new_job->( $job );
-    $progress->id( $id ) if $id;
     push $self->jobs->@*, $progress;
     #main::msg(sprintf "Launching %s", $progress->visual );
     $self->emit( 'added', $progress );
@@ -370,7 +367,8 @@ sub add( $self, $job, $remote=undef ) {
     my $line = ref $job ? encode_json( {
         id => $id, notify => $want_responses, payload => $job,
         # XXX make generic
-        visual => $job->{visual},
+        # we'll fetch the visual from the worker
+        #visual => $job->{visual},
     }) : $job;
     my $s = $self->server;
 
@@ -454,7 +452,7 @@ sub status($item) {
     my $perc = $item->percent;
     $perc = defined $perc ? sprintf "% 3d%%", $perc : ' -- ';
     my $vis = $item->visual // '?';
-    return sprintf "%s %s %s", $perc, $item->action, $item->visual;
+    return sprintf "%s %s %s", $perc, $item->action, $vis;
 }
 
 sub output_scoreboard(@) {
@@ -464,6 +462,7 @@ sub output_scoreboard(@) {
         #$debug,
         map { status( $_ ) } @scoreboard
     );
+    # This should be the "idle" handler, not here
     if( ! @scoreboard and ! $keep_running ) {
         Mojo::IOLoop->stop_gracefully;
     }
@@ -476,19 +475,11 @@ sub msg($msg) {
 
 # XXX convert from string to JSON objects before calling here!
 sub handle_add_url( $line ) {
-    if( $line =~ /\A\{/ ) {
-        # JSON command
-        #msg("JSON: $line");
-    } else {
-        # line with a single URL in it
-        #msg("PLAIN: $line");
-    }
-
     my $body = 0;
     my $size = rand(10)+4;
 
     my $item = COWS::ProgressItem->new(
-        visual => $line,
+        visual => $line->{visual},
         action => 'launched',
         total  => $size,
     );
