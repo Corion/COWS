@@ -2,8 +2,7 @@ package MooX::Role::ProgressItem 0.01;
 use Moo::Role;
 use 5.020;
 with 'MooX::Role::EventEmitter';
-use feature 'signatures';
-no warnings 'experimental::signatures';
+use experimental 'signatures';
 
 =head1 NAME
 
