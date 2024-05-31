@@ -16,10 +16,29 @@ use Mojo::JSON 'decode_json', 'encode_json';
 
 with 'MooX::Role::EventEmitter';
 
-# emits
-# update (to update the scoreboard)
-# idle
-# added (when a new item must be started)
+=head1 SYNOPSIS
+
+  my $s = MooX::JobFunnel->new(
+      new_job => sub( $file ) {
+          my $res = COWS::ProgressItem->new(
+              visual => $file,
+              total => -s $file,
+          );
+          start_upload($file, progress => sub($bytes) {
+              $res->progress($bytes);
+          });
+          return $res;
+      },
+  );
+  for my $file (@ARGV) {
+      $s->add();
+  };
+
+=head1 METHODS
+
+=head2 C<< ->new >>
+
+=cut
 
 has 'appname' => (
     is => 'ro',
@@ -250,19 +269,6 @@ sub _build_client( $self, $options ) {
     }
 }
 
-#package MooX::JobFunnel::Listener 0.01;
-#use 5.020;
-#use Moo 2;
-#
-=head1 NAME
-
-MooX::JobFunnel::Listener - command channel
-
-# emits
-# line
-
-=cut
-
 =head2 C<< ->create_listener $args >>
 
   my $l = $f->create_listener( { path => '/path/to/socket' } );
@@ -296,6 +302,26 @@ sub create_listener( $self, $args ) {
     return $obj;
 }
 
+=head1 EVENTS
+
+=over 4
+
+=item B<update>
+
+When any item has been added, finished or made progress
+
+=item B<idle>
+
+When no item is active anymore
+
+=item B<added>
+
+When a new item has been added
+
+=back
+
+=cut
+
 package MooX::JobFunnel::Worker 0.01;
 use 5.020;
 use Scalar::Util 'weaken';
@@ -303,6 +329,12 @@ use Moo::Role 2;
 use experimental 'signatures';
 
 with 'MooX::Role::EventEmitter';
+
+=head1 NAME
+
+MooX::JobFunnel::Worker - worker role for server and client
+
+=cut
 
 has 'jobs' => (
     is => 'ro',
