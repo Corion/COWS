@@ -1,13 +1,12 @@
 #!perl
 
-package COWS::ProgressItem 0.01;
+package JobFunnel::ProgressItem 0.01;
 use Moo 2;
 with 'MooX::Role::ProgressItem';
 
 1;
 
-# XXX rename from MooX to (maybe) COWS:: or something else
-package MooX::JobFunnel 0.01;
+package JobFunnel 0.01;
 use 5.020;
 use Moo 2;
 use experimental 'signatures';
@@ -18,9 +17,9 @@ with 'MooX::Role::EventEmitter';
 
 =head1 SYNOPSIS
 
-  my $s = MooX::JobFunnel->new(
+  my $s = JobFunnel->new(
       new_job => sub( $file ) {
-          my $res = COWS::ProgressItem->new(
+          my $res = JobFunnel::ProgressItem->new(
               visual => $file,
               total => -s $file,
           );
@@ -170,7 +169,7 @@ sub _build_worker( $self ) {
 }
 
 sub _build_server( $self ) {
-    my $worker = MooX::JobFunnel::Worker::Server->new(
+    my $worker = JobFunnel::Worker::Server->new(
         new_job => $self->new_job,
     );
 
@@ -261,7 +260,7 @@ sub _build_client( $self, $options ) {
     $server->wait;
 
     if( $res ) {
-        my $worker = MooX::JobFunnel::Worker::Client->new( server => $s );
+        my $worker = JobFunnel::Worker::Client->new( server => $s );
 
         return $worker;
     } else {
@@ -322,7 +321,7 @@ When a new item has been added
 
 =cut
 
-package MooX::JobFunnel::Worker 0.01;
+package JobFunnel::Worker 0.01;
 use 5.020;
 use Scalar::Util 'weaken';
 use Moo::Role 2;
@@ -332,7 +331,7 @@ with 'MooX::Role::EventEmitter';
 
 =head1 NAME
 
-MooX::JobFunnel::Worker - worker role for server and client
+JobFunnel::Worker - worker role for server and client
 
 =cut
 
@@ -368,13 +367,13 @@ sub add_job( $self, $progress ) {
     return $progress;
 };
 
-package MooX::JobFunnel::Worker::Server 0.01;
+package JobFunnel::Worker::Server 0.01;
 use 5.020;
 use Carp 'croak';
 use Moo 2;
 use experimental 'signatures';
 
-with 'MooX::JobFunnel::Worker';
+with 'JobFunnel::Worker';
 
 # The callback
 has 'new_job' => (
@@ -406,12 +405,12 @@ sub add( $self, $job, $remote=undef ) {
 # done
 # ???
 
-package MooX::JobFunnel::Worker::Client;
+package JobFunnel::Worker::Client;
 use Moo 2;
 use experimental 'signatures';
 use Mojo::JSON 'encode_json';
 
-with 'MooX::JobFunnel::Worker';
+with 'JobFunnel::Worker';
 
 has 'server' => (
     is => 'ro',
@@ -435,7 +434,7 @@ sub add( $self, $job, $remote=undef ) {
     $s->write_line($line);
 
     # Create a progress item and return that here!
-    my $item = COWS::ProgressItem->new(
+    my $item = JobFunnel::ProgressItem->new(
         total  => undef,
         visual => 'waiting for remote',
         id     => $id,
@@ -472,7 +471,7 @@ GetOptions(
 # XXX fix, later
 #$dont_wait_for_completion //= 1;
 
-my $funnel = MooX::JobFunnel->new(
+my $funnel = JobFunnel->new(
     maybe domain_socket_name  => $domain_socket_name,
           wait_for_completion => !$dont_wait_for_completion,
                       new_job => \&handle_add_url,
@@ -522,7 +521,7 @@ sub handle_add_url( $line ) {
     my $body = 0;
     my $size = rand(10)+4;
 
-    my $item = COWS::ProgressItem->new(
+    my $item = JobFunnel::ProgressItem->new(
         visual => $line->{visual},
         action => 'launched',
         total  => $size,
