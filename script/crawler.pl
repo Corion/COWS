@@ -1,7 +1,6 @@
 use 5.020;
 use COWS::Crawler;
-use feature 'signatures';
-no warnings 'experimental::signatures';
+use experimental 'signatures';
 use experimental 'try';
 
 use COWS 'scrape';
