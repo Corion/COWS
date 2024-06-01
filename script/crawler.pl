@@ -23,6 +23,8 @@ use XML::Feed;
 use DateTime;
 use DateTime::Format::ISO8601;
 use File::Path 'mkpath';
+use JobFunnel;
+use JobFunnel::ProgressItem;
 
 GetOptions(
     'config|c=s'        => \my $config_file,
@@ -61,27 +63,48 @@ if( ! $scrape_item ) {
 
 # The progress output
 my $printer = Term::Output::List->new();
-my @scoreboard;
 
-sub status($res, $r) {
-    my $size = $res->content->progress;
-    my $url = $r->{req}->req->url;
-    my $len = $res->headers->content_length;
+my $funnel = JobFunnel->new(
+    new_job => \&add_request
+);
+$funnel->on( update => sub { output_scoreboard() });
 
-    my $viz = $url;
-    # XXX Get terminal size
-    if( length $viz > 80 ) {
-        substr( $viz, 77 ) = '...';
+my $crawler;
+sub add_request( $job ) {
+    my $url = $job->{info}->{url};
+    my $res;
+    if( $job->{action} eq 'request' ) {
+        if( $res = $crawler->submit_request($job)) {
+            if( $verbose ) {
+                msg("Queueing $url");
+            }
+        } else {
+            if( $verbose ) {
+                msg("Skipping $url");
+            };
+        }
+    } elsif( $job->{action} eq 'download' ) {
+        $res = $crawler->submit_download(
+            $job => $job->{target},
+        );
     }
-
-    return sprintf "% 3d %s %s", $size == $len ? 100 : int($size / ($len / 100)), $url;
+    return $res
 }
 
-sub output_scoreboard() {
-    #my $debug = sprintf "%d requests, %d pending", scalar(keys %scoreboard), scalar $crawler->queue->@*;
+sub status($item) {
+    my $perc = $item->percent;
+    $perc = defined $perc ? sprintf "% 3d%%", $perc : ' -- ';
+    my $vis = $item->visual // '?';
+    return sprintf "%s %s %s", $perc, $item->action, $vis;
+}
+
+sub output_scoreboard(@) {
+    my @scoreboard;
+    if( $funnel ) {
+        @scoreboard = $funnel->jobs->@*;
+    };
     $printer->output_list(
-        #$debug,
-        map { status( @$_ ) } @scoreboard
+        map { status( $_ ) } @scoreboard
     );
 }
 
@@ -108,22 +131,17 @@ sub load_config( $config_file ) {
 }
 
 sub create_crawler( $config, $cache ) {
-    my $crawler = COWS::Crawler->new(
+    $crawler = COWS::Crawler->new(
         #base    => $config->{base},
         cache => $cache,
         debug => $debug,
     );
 
-    $crawler->on('progress' => sub($c, $r, $res) {
-        return unless my $len = $res->headers->content_length;
-
-        # Check if we already have this request in our list
-        if( ! grep { $_->[0] == $res and $_->[1] == $r } @scoreboard) {
-            push @scoreboard, [$res,$r]
-        }
-
-        output_scoreboard();
-    });
+    #$crawler->on('progress' => sub($c, $r, $res) {
+    #    return unless my $len = $res->headers->content_length;
+    #
+    #    output_scoreboard();
+    #});
 
     $crawler->on('error' => sub($c, $r) {
         msg( sprintf "Couldn't fetch %s", $r->{req}->req->url );
@@ -131,11 +149,10 @@ sub create_crawler( $config, $cache ) {
     });
 
     # remove things on complete
-    $crawler->on('finish' => sub($c, $r, $res) {
-        @scoreboard = grep { $_->[0] != $res or $_->[1] != $r } @scoreboard;
-        #msg( sprintf "Finished %s", $r->{req}->req->url );
-        output_scoreboard();
-    });
+    #$crawler->on('finish' => sub($c, $r, $res) {
+    #    @scoreboard = grep { $_->[0] != $res or $_->[1] != $r } @scoreboard;
+    #    output_scoreboard();
+    #});
 
     return $crawler
 }
@@ -178,16 +195,8 @@ sub handle_follow( $crawler, $page, $url ) {
         from => $page->{info}->{url},
     };
 
-    if(
-        $crawler->submit_request({info => $info, method => 'GET', url => "$url"})
-    ) {
-        if( $verbose ) {
-            msg("Queueing $url");
-        }
-        #msg( sprintf "Queueing %s (%x, %x)", $r->{req}->req->url, $res, $r );
-    } else {
-        #msg("Skipping $url");
-    }
+    my $job = {info => $info, method => 'GET', url => "$url", action => 'request'};
+    $funnel->add($job);
 }
 
 my @known_extensions = (qw(
@@ -222,12 +231,15 @@ sub handle_download( $crawler, $page, $url, $filename=undef ) {
 
     my $target = File::Spec->catfile( $target_directory, $filename );
 
-    $crawler->submit_download({info => $info, method => 'GET', url => "$url",
+    my $job = {info => $info, method => 'GET', url => "$url",
         headers => {
             Referer => $page->{info}->{url},
             # cookies?
-        }
-    } => $target);
+        },
+        target => $target,
+        action => 'download',
+    };
+    $funnel->add($job);
 }
 
 my %actions = (
@@ -287,7 +299,10 @@ sub scrape_pages($config, @items) {
 
     my @rows;
     for my $url (@items) {
-        $crawler->submit_request({ method => 'GET', url => $url, info => { url => $url }} ) ;
+        my $job = { method => 'GET', url => $url, info => { url => $url },
+            action => 'request',
+        };
+        $funnel->add($job);
     }
 
     my @res;
