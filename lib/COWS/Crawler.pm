@@ -223,14 +223,23 @@ sub submit_request( $self, $request ) {
     my $queued = { req => $req, info => $info };
     push $self->queue->@*, $queued;
 
+    my $progress = JobFunnel::ProgressItem->new(
+        visual => $url,
+        total  => undef,
+    );
+
     $req->res->on( 'progress' => sub($res,@rest) {
         $s->emit('progress', $queued, $res);
+        return unless my $len = $res->headers->content_length;
+        $progress->total($len) unless defined $progress->total;
+        $progress->progress($res->content->progress);
     });
     $req->res->on( 'finish' => sub($res,@rest) {
         $s->emit('finish', $queued, $res);
+        $progress->finish();
     });
 
-    return $queued
+    return $progress
 }
 
 # do we want push/unshift, to manage the expansion
@@ -252,6 +261,11 @@ sub submit_download( $self, $request, $filename ) {
 
     weaken (my $s = $self);
 
+    my $progress = JobFunnel::ProgressItem->new(
+        visual => $url,
+        total  => undef,
+    );
+
     # See also LWP::UserAgent
     # If the file exists, add a cache-related header
     if ( -e $filename ) {
@@ -265,6 +279,7 @@ sub submit_download( $self, $request, $filename ) {
     my $queued = { req => $req, info => $info };
     $req->res->on( 'progress' => sub($res,@rest) {
         $s->emit('progress', $queued, $res);
+        $progress->progress($res->content->progress);
     });
     $req->res->on( 'finish' => sub($res,@rest) {
 
@@ -285,11 +300,12 @@ sub submit_download( $self, $request, $filename ) {
             warn sprintf "Got %d status for $url", $res->code;
         }
         $s->emit('finish', $queued, $res);
+        $progress->finish();
     });
 
     push $self->queue->@*, $queued;
 
-    return $queued
+    return $progress
 }
 
 
