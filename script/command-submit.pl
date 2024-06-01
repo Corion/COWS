@@ -19,8 +19,6 @@ GetOptions(
     'server'          => \my $keep_running,
 );
 
-# XXX fix, later
-#$dont_wait_for_completion //= 1;
 
 my $funnel = JobFunnel->new(
     maybe domain_socket_name  => $domain_socket_name,
