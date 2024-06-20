@@ -96,12 +96,14 @@ sub scrape_pages($config, @items) {
 
     my @rows;
     for my $item (@items) {
+        my $url = $item =~ m!^http! ? $item : sprintf "", $item;
         push @rows, $scraper->scrape(
             ua => $scraper,
             cache => \%cache,
             start_rule => $scrape_item,
             config => $config,
             item => $item,
+            #url => $item, # why do we want/need this? We have ->make_url already...
         )->@*;
     };
     output_data( $config, $output_type, \@rows );
