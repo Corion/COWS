@@ -2,26 +2,30 @@ use 5.020;
 use COWS::Crawler;
 use experimental 'signatures';
 use experimental 'try';
+use PerlX::Maybe;
 
-#use COWS 'scrape';
 use URI;
-#use lib '../Term-Output-List/lib';
 use Term::Output::List;
 use HTTP::Request::FromCurl;
 
 use Getopt::Long ':config' => 'pass_through';
 use Encode 'decode';
 use URI;
-use YAML 'LoadFile';
 use File::Spec;
-use JSON;
 use JobFunnel;
 use JobFunnel::ProgressItem;
 
 GetOptions(
     'h|help' => \my $help,
     'target-directory=s' => \my $target_directory,
+
+    # Funnel options
+    'domain-socket=s' => \my $domain_socket_name,
+    'background'      => \my $dont_wait_for_completion,
+    'grace-timeout=s' => \my $grace_timeout,
+    'server'          => \my $keep_running,
 );
+
 # XXX do we want a sleep option to wait between requests?
 #     between all requests?! what about requests from mungers?!
 #     or should effective_url not be a munger but an action?!
@@ -33,10 +37,11 @@ binmode STDOUT, ':encoding(utf8)';
 # The progress output
 my $printer = Term::Output::List->new();
 my $funnel = JobFunnel->new(
-    new_job => \&submit_download,
+    maybe domain_socket_name  => $domain_socket_name,
+          wait_for_completion => !$dont_wait_for_completion,
+                      new_job => \&submit_download,
 );
 $funnel->on( update => sub { output_scoreboard() });
-$funnel->on( added => sub { msg("Added item" )});
 $funnel->on( idle => sub { Mojo::IOLoop->stop_gracefully });
 
 my $ua = Mojo::UserAgent->new();
