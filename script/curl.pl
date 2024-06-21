@@ -80,7 +80,16 @@ sub submit_download( $request ) {
     $req->res->on( 'finish' => sub($res,@rest) {
 
         # Only save if successful and not already there:
-        if( $res->code =~ /^2\d\d/ ) {
+        if( $res->code == 206 ) {
+            if( open my $fh, '>>:raw', $filename) {
+                seek $fh, 0, 2; # Append
+                print $fh $res->content->asset->slurp;
+
+            } else {
+                msg("Error: Can't append to '$filename': $!");
+            };
+
+        } elsif( $res->code =~ /^2\d\d/ ) {
             $res->save_to( $filename );
             # Update utime from the server Last-Changed header, if we know it
             if ( my $lm = $res->headers->last_modified ) {
@@ -152,7 +161,7 @@ sub handle_download( $req ) {
     my $target = File::Spec->catfile( $target_directory, $filename );
     if( -e $target ) {
         msg( "$target already exists, resuming" );
-        $req->headers->{Range} = -s( $filename ). "-";
+        $req->headers->{Range} = "bytes=" . -s( $filename ). "-";
     };
 
     if( ! -d $target_directory ) {
