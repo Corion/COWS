@@ -35,7 +35,11 @@ $target_directory //= '.';
 binmode STDOUT, ':encoding(utf8)';
 
 # The progress output
-my $printer = Term::Output::List->new();
+my $printer = Term::Output::List->new(
+    hook_warnings => 1,
+);
+# Also redirect program warnings to our handler
+
 my $funnel = JobFunnel->new(
     maybe domain_socket_name  => $domain_socket_name,
           wait_for_completion => !$dont_wait_for_completion,
@@ -185,5 +189,5 @@ my @requests = HTTP::Request::FromCurl->new( argv => \@ARGV );
 for my $r (@requests) {
     handle_download( $r );
 }
-
+warn "1 2 3";
 Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
