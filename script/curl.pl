@@ -84,7 +84,6 @@ sub submit_download( $request ) {
     });
 
     $req->res->on( 'finish' => sub($res,@rest) {
-
         # Only save if successful and not already there:
         if( $res->code == 206 ) {
             if( open my $fh, '>>:raw', $filename) {
@@ -109,6 +108,8 @@ sub submit_download( $request ) {
         } elsif( $res->code =~ /^3\d\d/ ) {
             # what do we do about 301 redirects?!
             msg(sprintf "Got %d status for $url", $res->code);
+        } else {
+            msg(sprintf "HTTP Error %d: %s", $res->code, $res->message);
         }
         $progress->finish();
     });
@@ -189,5 +190,4 @@ my @requests = HTTP::Request::FromCurl->new( argv => \@ARGV );
 for my $r (@requests) {
     handle_download( $r );
 }
-warn "1 2 3";
 Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
