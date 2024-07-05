@@ -42,7 +42,9 @@ my $funnel = JobFunnel->new(
                       new_job => \&submit_download,
 );
 $funnel->on( update => sub { output_scoreboard() });
-$funnel->on( idle => sub { Mojo::IOLoop->stop_gracefully });
+if( !$keep_running ) {
+    $funnel->on('idle' => sub { Mojo::IOLoop->stop_gracefully });
+};
 
 my $ua = Mojo::UserAgent->new();
 
