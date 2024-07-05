@@ -100,7 +100,7 @@ sub _build_worker( $self ) {
     my $worker;
 
     # Check if we have a local domain socket
-    my $domain_socket_name = $self->_build_domain_socket_name( $self->appname );
+    my $domain_socket_name = $self->domain_socket_name;
     if( -e $domain_socket_name ) {
         # XXX remove later
         my %options = (
