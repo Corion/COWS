@@ -144,6 +144,7 @@ my @known_extensions = (qw(
     pdf
     png
     tar.gz
+    html
 ));
 my $re_known_extensions = join "|", @known_extensions;
 
