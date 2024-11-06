@@ -185,12 +185,12 @@ sub _build_client( $self, $options ) {
             return
         };
 
-        $server->resolve( $stream );
 
         # Do some protocol negotiation here
         # XXX Tell the server we want to receive progress information
 
         if( ! $self->wait_for_completion ) {
+            $server->resolve( $stream );
             #main::msg("Will quit immediately");
             $stream->on(drain => sub {
                 #say "Shutting down";
@@ -200,6 +200,7 @@ sub _build_client( $self, $options ) {
         } else {
             #say "Waiting for replies";
             my $s = $stream->with_roles('+LineBuffer')->watch_lines;
+            $server->resolve( $s );
             $s->on( read_line => sub( $stream, $line, $sep ) {
                 #say "REPLY: $line";
                 # U
