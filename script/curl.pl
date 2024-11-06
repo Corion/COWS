@@ -95,7 +95,7 @@ sub submit_download( $request ) {
             };
 
         } elsif( $res->code =~ /^2\d\d/ ) {
-            $res->save_to( $filename );
+            $res->save_to( $filename ) or warn "$!";
             # Update utime from the server Last-Changed header, if we know it
             if ( my $lm = $res->headers->last_modified ) {
                 $lm = HTTP::Date::str2time( $lm );
