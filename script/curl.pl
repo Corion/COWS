@@ -111,6 +111,7 @@ sub submit_download( $request ) {
 
             my $redirect = { $request->%* };
             $redirect->{progress} = $progress;
+            $progress->total(undef);
             $redirect->{url} = $res->headers->header('Location');
 
             submit_download($redirect);
