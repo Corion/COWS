@@ -109,13 +109,16 @@ sub submit_download( $request ) {
             # what do we do about 301 redirects?!
             msg(sprintf "Got %d status for $url", $res->code);
 
+            # Build a fresh request from the old one
             my $redirect = { $request->%* };
+            my $target = Mojo::URL->new( $res->headers->header('Location') );
+            $redirect->{headers}->{Host} = $target->host;
             $redirect->{progress} = $progress;
+            $progress->visual( "$target" );
             $progress->total(undef);
             $redirect->{url} = $res->headers->header('Location');
 
             return submit_download($redirect);
-
         } else {
             msg(sprintf "HTTP Error %d: %s", $res->code, $res->message);
         }
