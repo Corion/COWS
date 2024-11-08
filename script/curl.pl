@@ -114,7 +114,7 @@ sub submit_download( $request ) {
             $progress->total(undef);
             $redirect->{url} = $res->headers->header('Location');
 
-            submit_download($redirect);
+            return submit_download($redirect);
 
         } else {
             msg(sprintf "HTTP Error %d: %s", $res->code, $res->message);
