@@ -61,7 +61,7 @@ sub submit_download( $request ) {
     my $filename = $request->{target};
     msg("$method $url");
 
-    my $progress = JobFunnel::ProgressItem->new(
+    my $progress = $request->{progress} // JobFunnel::ProgressItem->new(
         visual => $url,
         action => 'dl',
         total  => undef,
@@ -108,6 +108,13 @@ sub submit_download( $request ) {
         } elsif( $res->code =~ /^3\d\d/ ) {
             # what do we do about 301 redirects?!
             msg(sprintf "Got %d status for $url", $res->code);
+
+            my $redirect = { $request->%* };
+            $redirect->{progress} = $progress;
+            $redirect->{url} = $res->headers->header('Location');
+
+            submit_download($redirect);
+
         } else {
             msg(sprintf "HTTP Error %d: %s", $res->code, $res->message);
         }
