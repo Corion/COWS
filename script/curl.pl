@@ -177,7 +177,7 @@ sub handle_download( $req ) {
         }
     }
 
-    my $target = File::Spec->catfile( $target_directory, $filename );
+    my $target = File::Spec->rel2abs( $target_directory, $filename );
     if( -e $target ) {
         msg( "$target already exists, resuming" );
         $req->headers->{Range} = "bytes=" . -s( $filename ). "-";
